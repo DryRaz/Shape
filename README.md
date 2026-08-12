@@ -10,7 +10,7 @@ Stack : React + TypeScript + Vite, Tailwind CSS, Supabase (Postgres, Auth, Stora
 - **Tableau de bord** : totaux caloriques, habitudes complétées, vues jour/semaine/mois, streak.
 - **Sommeil** : coucher/lever, durée, qualité (1-5).
 - **Nutrition** : capture photo → analyse Claude vision → JSON structuré (aliments, calories, macros) → correction manuelle possible (`user_adjusted`).
-- **Sport** : catalogue d'exercices importé depuis wger, création de routines, mode "séance en cours" (visuel, séries/reps ou timer, repos, barre de progression).
+- **Sport** : catalogue d'exercices importé depuis wger, création de routines, génération automatique d'un programme (3 semaines × 4 séances) par Claude selon l'objectif de l'utilisateur, mode "séance en cours" (visuel, séries/reps ou timer, repos, barre de progression).
 - **Lecture / temps spirituel** : habitudes personnalisées (booléen ou quantité).
 - **Rappels** : notifications push (Web Push) aux heures de repas (7h30, 13h, 19h Africa/Nairobi par défaut) et aux horaires définis pour les autres habitudes.
 - **Poids & profil** : historique de poids, taille/âge/sexe/objectif.
@@ -39,6 +39,7 @@ npm install
 
 ```bash
 supabase functions deploy analyze-meal-photo
+supabase functions deploy generate-training-program
 supabase functions deploy send-reminder-notifications
 
 # Clé Claude (jamais exposée au client)
@@ -56,7 +57,11 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ... \
 npm run wger:import
 ```
 
-Réexécutez cette commande périodiquement pour mettre à jour le catalogue (upsert par `wger_id`).
+Réexécutez cette commande périodiquement pour mettre à jour le catalogue (upsert par `wger_id`). C'est un
+script manuel, pas un job automatique : si la table `exercises` est vide (et donc que "Générer mon programme"
+échoue faute d'exercices), c'est signe qu'il n'a jamais été lancé sur ce projet Supabase. Le script s'arrête
+et logue une erreur explicite au moindre souci (réseau, forme de réponse wger inattendue, écriture Supabase
+refusée) plutôt que de terminer silencieusement sans rien avoir importé.
 
 ### 5. Notifications push (Web Push / VAPID)
 
@@ -122,7 +127,7 @@ src/
   types/        # types miroir du schéma Supabase
 supabase/
   migrations/   # schéma SQL + RLS
-  functions/    # Edge Functions (analyze-meal-photo, send-reminder-notifications)
+  functions/    # Edge Functions (analyze-meal-photo, generate-training-program, send-reminder-notifications)
 scripts/
   import-wger-exercises.ts
 ```

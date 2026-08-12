@@ -10,6 +10,8 @@ import SportPage from '@/pages/SportPage'
 import ExerciseCatalogPage from '@/pages/ExerciseCatalogPage'
 import RoutineEditorPage from '@/pages/RoutineEditorPage'
 import WorkoutSessionPage from '@/pages/WorkoutSessionPage'
+import ProgramGeneratePage from '@/pages/ProgramGeneratePage'
+import ProgramPage from '@/pages/ProgramPage'
 import HabitsPage from '@/pages/HabitsPage'
 import RemindersPage from '@/pages/RemindersPage'
 import SettingsPage from '@/pages/SettingsPage'
@@ -46,6 +48,8 @@ export default function App() {
         <Route path="/sport/exercices" element={<ExerciseCatalogPage />} />
         <Route path="/sport/routines/:routineId" element={<RoutineEditorPage />} />
         <Route path="/sport/routines/nouveau" element={<RoutineEditorPage />} />
+        <Route path="/sport/programme/nouveau" element={<ProgramGeneratePage />} />
+        <Route path="/sport/programme/:programId" element={<ProgramPage />} />
         <Route path="/sport/seance/:sessionId" element={<WorkoutSessionPage />} />
         <Route path="/habitudes" element={<HabitsPage />} />
         <Route path="/rappels" element={<RemindersPage />} />
