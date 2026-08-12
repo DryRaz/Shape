@@ -90,6 +90,17 @@ export interface Routine {
   id: string
   user_id: string
   name: string
+  program_id: string | null
+  week_number: number | null
+  session_number: number | null
+  created_at: string
+}
+
+export interface Program {
+  id: string
+  user_id: string
+  goal_type: GoalType | null
+  name: string
   created_at: string
 }
 

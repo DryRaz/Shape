@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, ListChecks, Play, Plus } from 'lucide-react'
+import { Dumbbell, ListChecks, Play, Plus, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { displayDate } from '@/lib/date'
-import type { Routine, WorkoutSession } from '@/types/database'
+import type { Program, Routine, WorkoutSession } from '@/types/database'
 
 export default function SportPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [routines, setRoutines] = useState<Routine[]>([])
   const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,9 +24,11 @@ export default function SportPage() {
         .not('completed_at', 'is', null)
         .order('date', { ascending: false })
         .limit(10),
-    ]).then(([{ data: r }, { data: s }]) => {
+      supabase.from('programs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+    ]).then(([{ data: r }, { data: s }, { data: p }]) => {
       setRoutines(r ?? [])
       setRecentSessions(s ?? [])
+      setPrograms(p ?? [])
       setLoading(false)
     })
   }, [user])
@@ -42,6 +45,44 @@ export default function SportPage() {
           Exercices
         </Link>
       </header>
+
+      <section className="card space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-400">
+            <Sparkles size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-slate-100">Programme généré par IA</p>
+            <p className="text-xs text-slate-500">3 semaines · 4 séances/semaine, adapté à votre objectif</p>
+          </div>
+        </div>
+        {!profile?.goal_type && (
+          <p className="text-xs text-amber-400">
+            Renseignez votre objectif dans <Link to="/profil" className="underline">votre profil</Link> pour un
+            programme mieux adapté (vous pouvez générer sans, un programme équilibré sera utilisé).
+          </p>
+        )}
+        <Link to="/sport/programme/nouveau" className="btn-primary w-full">
+          <Sparkles size={16} />
+          Générer mon programme
+        </Link>
+      </section>
+
+      {programs.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-medium text-slate-300">Mes programmes</h2>
+          <ul className="space-y-2">
+            {programs.map((p) => (
+              <li key={p.id} className="card py-3">
+                <Link to={`/sport/programme/${p.id}`} className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-100">{p.name}</span>
+                  <span className="text-xs text-slate-500">{displayDate(p.created_at.slice(0, 10))}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         <div className="mb-2 flex items-center justify-between">
