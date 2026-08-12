@@ -92,6 +92,16 @@ npx web-push generate-vapid-keys
 npm run dev
 ```
 
+### 7. Déploiement sur GitHub Pages
+
+Le repo inclut un workflow (`.github/workflows/deploy.yml`) qui build et déploie automatiquement sur GitHub Pages à chaque push sur `main`.
+
+1. Dans **Settings → Pages**, réglez *Build and deployment → Source* sur **GitHub Actions**.
+2. Dans **Settings → Secrets and variables → Actions**, ajoutez les secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` et (optionnel) `VITE_VAPID_PUBLIC_KEY` — ce sont les mêmes valeurs que dans `.env.local`, nécessaires au build puisque Vite les inline à la compilation.
+3. Poussez sur `main` (ou lancez le workflow manuellement) : l'app sera servie sur `https://<utilisateur>.github.io/Shape/`.
+
+`vite.config.ts` définit `base: '/Shape/'` pour que les assets se chargent correctement sous ce sous-chemin, et le routage utilise `HashRouter` (au lieu de `BrowserRouter`) car GitHub Pages ne supporte pas la réécriture d'URL côté serveur nécessaire au routage "history" pour un site de type project page.
+
 ## Scripts
 
 | Commande | Description |
