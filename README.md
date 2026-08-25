@@ -2,14 +2,14 @@
 
 PWA de suivi d'habitudes quotidiennes et de bien-être : sommeil, sport, nutrition, lecture / temps spirituel.
 
-Stack : React + TypeScript + Vite, Tailwind CSS, Supabase (Postgres, Auth, Storage, Edge Functions), Claude (vision) pour l'analyse des repas par photo, API wger pour le catalogue d'exercices.
+Stack : React + TypeScript + Vite, Tailwind CSS, Supabase (Postgres, Auth, Storage, Edge Functions), Claude (vision) pour l'analyse des repas par photo, API wger pour le catalogue d'exercices, catalogue calorique Yazio pour ancrer les estimations de repas sur des valeurs réelles.
 
 ## Fonctionnalités
 
 - **Auth** par e-mail (lien magique Supabase).
 - **Tableau de bord** : totaux caloriques, habitudes complétées, vues jour/semaine/mois, streak.
 - **Sommeil** : coucher/lever, durée, qualité (1-5).
-- **Nutrition** : capture photo → analyse Claude vision → JSON structuré (aliments, calories, macros) → correction manuelle possible (`user_adjusted`).
+- **Nutrition** : capture photo → analyse Claude vision → JSON structuré (aliments, calories, macros) → chaque aliment détecté est recherché dans le catalogue calorique Yazio (`foods`) pour remplacer l'estimation du modèle par une valeur réelle quand un match fiable est trouvé → correction manuelle possible (`user_adjusted`).
 - **Sport** : catalogue d'exercices importé depuis wger, création de routines, génération automatique d'un programme (3 semaines × 4 séances) par Claude selon l'objectif de l'utilisateur, mode "séance en cours" (visuel, séries/reps ou timer, repos, barre de progression).
 - **Lecture / temps spirituel** : habitudes personnalisées (booléen ou quantité).
 - **Rappels** : notifications push (Web Push) aux heures de repas (7h30, 13h, 19h Africa/Nairobi par défaut) et aux horaires définis pour les autres habitudes.
@@ -63,7 +63,22 @@ script manuel, pas un job automatique : si la table `exercises` est vide (et don
 et logue une erreur explicite au moindre souci (réseau, forme de réponse wger inattendue, écriture Supabase
 refusée) plutôt que de terminer silencieusement sans rien avoir importé.
 
-### 5. Notifications push (Web Push / VAPID)
+### 5. Import du catalogue calorique (Yazio)
+
+```bash
+SUPABASE_URL=https://xxxx.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=eyJ... \
+npm run yazio:import
+```
+
+Peuple la table `foods` à partir de `scripts/data/yazio-foods.json`, un instantané statique extrait de
+[yazio.com/fr/aliments](https://yazio.com/fr/aliments) (~1700 aliments avec leur valeur calorique par portion et
+pour 100g). Contrairement à l'import wger, ce n'est pas un appel à une API en direct — pas de réseau externe
+nécessaire, juste une lecture du fichier JSON. Si la table `foods` est vide (script jamais lancé), l'analyse de
+repas par photo continue de fonctionner normalement : elle retombe entièrement sur l'estimation du modèle de
+vision pour chaque aliment (`source: 'estimated'` au lieu de `'catalog'`).
+
+### 6. Notifications push (Web Push / VAPID)
 
 ```bash
 npx web-push generate-vapid-keys
@@ -91,13 +106,13 @@ npx web-push generate-vapid-keys
 
   (À exécuter dans le SQL editor du dashboard une fois les secrets/fonctions déployés.)
 
-### 6. Lancer l'app
+### 7. Lancer l'app
 
 ```bash
 npm run dev
 ```
 
-### 7. Déploiement sur GitHub Pages
+### 8. Déploiement sur GitHub Pages
 
 Le repo inclut un workflow (`.github/workflows/deploy.yml`) qui build et déploie automatiquement sur GitHub Pages à chaque push sur `main`.
 
@@ -115,6 +130,7 @@ Le repo inclut un workflow (`.github/workflows/deploy.yml`) qui build et déploi
 | `npm run build` | Typecheck + build de production (PWA incluse) |
 | `npm run lint` | ESLint |
 | `npm run wger:import` | Importe/rafraîchit le catalogue d'exercices wger |
+| `npm run yazio:import` | Importe/rafraîchit le catalogue calorique Yazio (`scripts/data/yazio-foods.json`) |
 
 ## Structure
 
@@ -130,10 +146,13 @@ supabase/
   functions/    # Edge Functions (analyze-meal-photo, generate-training-program, send-reminder-notifications)
 scripts/
   import-wger-exercises.ts
+  import-yazio-foods.ts
+  data/
+    yazio-foods.json
 ```
 
 ## Notes de sécurité
 
 - La clé Claude (`ANTHROPIC_API_KEY`) et les clés VAPID privées ne sont jamais envoyées au client — elles vivent uniquement en secrets d'Edge Functions.
 - Toutes les tables utilisateur sont protégées par Row Level Security (`auth.uid() = user_id`).
-- Le catalogue `exercises` est en lecture publique ; seul le script d'import (clé service role) peut y écrire.
+- Les catalogues `exercises` et `foods` sont en lecture publique ; seuls leurs scripts d'import (clé service role) peuvent y écrire.

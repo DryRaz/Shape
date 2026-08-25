@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Flame } from 'lucide-react'
+import { Camera, ChevronDown, Database, Flame, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import RangeSwitcher from '@/components/RangeSwitcher'
 import { displayDate, isoDate, rangeFor, todayInTimezone, type RangeKind } from '@/lib/date'
-import type { Meal as MealType, MealType as MealKind } from '@/types/database'
+import type { Meal as MealType, MealItem, MealType as MealKind } from '@/types/database'
 
 const MEAL_LABELS: Record<MealKind, string> = {
   breakfast: 'Petit-déjeuner',
@@ -21,6 +21,8 @@ export default function NutritionPage() {
   const [anchor, setAnchor] = useState(() => todayInTimezone(timezone))
   const [meals, setMeals] = useState<MealType[]>([])
   const [loading, setLoading] = useState(true)
+  const [mealItems, setMealItems] = useState<Record<string, MealItem[]>>({})
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const range = useMemo(() => rangeFor(kind, anchor, timezone), [kind, anchor, timezone])
   const startIso = isoDate(range.start)
@@ -47,6 +49,38 @@ export default function NutritionPage() {
       cancelled = true
     }
   }, [user, startIso, endIso])
+
+  useEffect(() => {
+    if (meals.length === 0) {
+      setMealItems({})
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('meal_items')
+      .select('*')
+      .in('meal_id', meals.map((m) => m.id))
+      .then(({ data }) => {
+        if (cancelled) return
+        const grouped: Record<string, MealItem[]> = {}
+        for (const item of data ?? []) {
+          (grouped[item.meal_id] ??= []).push(item)
+        }
+        setMealItems(grouped)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [meals])
+
+  function toggleExpanded(mealId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(mealId)) next.delete(mealId)
+      else next.add(mealId)
+      return next
+    })
+  }
 
   const totalCalories = meals.reduce((s, m) => s + (m.estimated_calories ?? 0), 0)
   const totalProtein = meals.reduce((s, m) => s + (m.estimated_protein_g ?? 0), 0)
@@ -94,25 +128,64 @@ export default function NutritionPage() {
           <section key={date}>
             <h2 className="mb-2 text-sm font-medium text-slate-300">{displayDate(date)}</h2>
             <ul className="space-y-2">
-              {dayMeals.map((meal) => (
-                <li key={meal.id} className="card flex items-center gap-3 py-3">
-                  {meal.photo_url ? (
-                    <img src={meal.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800 text-slate-600">
-                      <Camera size={18} />
+              {dayMeals.map((meal) => {
+                const items = mealItems[meal.id] ?? []
+                const matchedCount = items.filter((i) => i.source === 'catalog').length
+                const isExpanded = expanded.has(meal.id)
+                return (
+                  <li key={meal.id} className="card space-y-2 py-3">
+                    <div className="flex items-center gap-3">
+                      {meal.photo_url ? (
+                        <img src={meal.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800 text-slate-600">
+                          <Camera size={18} />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm text-slate-200">{MEAL_LABELS[meal.meal_type]}</p>
+                        <p className="text-xs text-slate-500">
+                          P {Math.round(meal.estimated_protein_g ?? 0)}g · G {Math.round(meal.estimated_carbs_g ?? 0)}g · L{' '}
+                          {Math.round(meal.estimated_fat_g ?? 0)}g
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium text-slate-100">{Math.round(meal.estimated_calories ?? 0)} kcal</p>
+                      <button
+                        onClick={() => toggleExpanded(meal.id)}
+                        disabled={items.length === 0}
+                        className="shrink-0 text-slate-500 disabled:opacity-30"
+                      >
+                        <ChevronDown size={16} className={isExpanded ? 'rotate-180' : ''} />
+                      </button>
                     </div>
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-200">{MEAL_LABELS[meal.meal_type]}</p>
-                    <p className="text-xs text-slate-500">
-                      P {Math.round(meal.estimated_protein_g ?? 0)}g · G {Math.round(meal.estimated_carbs_g ?? 0)}g · L{' '}
-                      {Math.round(meal.estimated_fat_g ?? 0)}g
-                    </p>
-                  </div>
-                  <p className="text-sm font-medium text-slate-100">{Math.round(meal.estimated_calories ?? 0)} kcal</p>
-                </li>
-              ))}
+                    {isExpanded && items.length > 0 && (
+                      <div className="space-y-1 border-t border-slate-800 pt-2">
+                        <p className="text-xs text-slate-500">
+                          {matchedCount}/{items.length} depuis la base de données
+                        </p>
+                        <ul className="space-y-1">
+                          {items.map((item) => (
+                            <li key={item.id} className="flex items-center justify-between text-xs">
+                              <span className="flex items-center gap-2 text-slate-400">
+                                {item.source === 'catalog' ? (
+                                  <Database size={12} className="shrink-0 text-brand-400" />
+                                ) : (
+                                  <Sparkles size={12} className="shrink-0 text-slate-500" />
+                                )}
+                                {item.name}
+                                {item.portion_g ? ` · ${item.portion_g}g` : ''}
+                              </span>
+                              <span className="text-slate-400">
+                                {item.kcal !== null ? `${Math.round(item.kcal)} kcal` : '—'}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </section>
         ))

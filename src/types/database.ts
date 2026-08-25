@@ -133,6 +133,32 @@ export interface WorkoutSessionLog {
   weight_used: number | null
 }
 
+export interface Food {
+  id: string
+  name: string
+  category: string
+  subcategory: string | null
+  portion_label: string
+  portion_grams: number
+  kcal: number
+  kcal_per_100g: number
+  source: string
+  created_at: string
+}
+
+export type MealItemSource = 'catalog' | 'estimated'
+
+export interface MealItem {
+  id: string
+  meal_id: string
+  food_id: string | null
+  name: string
+  portion_g: number | null
+  kcal: number | null
+  source: MealItemSource
+  created_at: string
+}
+
 export interface PushSubscriptionRow {
   id: string
   user_id: string

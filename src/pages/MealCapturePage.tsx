@@ -1,10 +1,20 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Loader2, Upload, X } from 'lucide-react'
+import { Camera, Database, Loader2, Sparkles, Upload, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { todayInTimezone } from '@/lib/date'
-import type { MealType } from '@/types/database'
+import type { MealItemSource, MealType } from '@/types/database'
+
+interface DetectedItem {
+  name: string
+  portion_g: number
+  calories: number
+  source: MealItemSource
+  food_id: string | null
+  matched_name?: string | null
+  category?: string | null
+}
 
 const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
   { value: 'breakfast', label: 'Petit-déjeuner' },
@@ -43,7 +53,7 @@ export default function MealCapturePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const [items, setItems] = useState<{ name: string; portion_g: number; calories: number }[]>([])
+  const [items, setItems] = useState<DetectedItem[]>([])
   const [calories, setCalories] = useState('')
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
@@ -107,18 +117,38 @@ export default function MealCapturePage() {
         photoUrl = supabase.storage.from('meal-photos').getPublicUrl(path).data.publicUrl
       }
 
-      const { error } = await supabase.from('meals').insert({
-        user_id: user.id,
-        date: todayInTimezone(profile?.timezone ?? 'Africa/Nairobi'),
-        meal_type: mealType,
-        photo_url: photoUrl,
-        estimated_calories: calories ? Number(calories) : null,
-        estimated_protein_g: protein ? Number(protein) : null,
-        estimated_carbs_g: carbs ? Number(carbs) : null,
-        estimated_fat_g: fat ? Number(fat) : null,
-        user_adjusted: userAdjusted,
-      })
+      const { data: newMeal, error } = await supabase
+        .from('meals')
+        .insert({
+          user_id: user.id,
+          date: todayInTimezone(profile?.timezone ?? 'Africa/Nairobi'),
+          meal_type: mealType,
+          photo_url: photoUrl,
+          estimated_calories: calories ? Number(calories) : null,
+          estimated_protein_g: protein ? Number(protein) : null,
+          estimated_carbs_g: carbs ? Number(carbs) : null,
+          estimated_fat_g: fat ? Number(fat) : null,
+          user_adjusted: userAdjusted,
+        })
+        .select('*')
+        .single()
       if (error) throw error
+
+      if (newMeal && items.length > 0) {
+        const { error: itemsError } = await supabase.from('meal_items').insert(
+          items.map((item) => ({
+            meal_id: newMeal.id,
+            food_id: item.food_id,
+            name: item.name,
+            portion_g: item.portion_g,
+            kcal: item.calories,
+            source: item.source,
+          }))
+        )
+        // Don't block saving the meal if the item breakdown fails to save.
+        if (itemsError) console.error('Failed to save meal item breakdown', itemsError)
+      }
+
       navigate('/nutrition')
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement du repas.")
@@ -198,11 +228,21 @@ export default function MealCapturePage() {
 
         {items.length > 0 && (
           <div className="card space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Aliments détectés</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Aliments détectés</p>
+              <p className="text-xs text-slate-500">
+                {items.filter((i) => i.source === 'catalog').length}/{items.length} depuis la base de données
+              </p>
+            </div>
             <ul className="space-y-1">
               {items.map((item, i) => (
                 <li key={i} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-300">
+                  <span className="flex items-center gap-2 text-slate-300">
+                    {item.source === 'catalog' ? (
+                      <Database size={14} className="shrink-0 text-brand-400" />
+                    ) : (
+                      <Sparkles size={14} className="shrink-0 text-slate-500" />
+                    )}
                     {item.name} <span className="text-slate-500">· {item.portion_g}g</span>
                   </span>
                   <span className="text-slate-400">{Math.round(item.calories)} kcal</span>
