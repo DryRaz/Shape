@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "wger:import": "tsx scripts/import-wger-exercises.ts"
+    "wger:import": "tsx scripts/import-wger-exercises.ts",
+    "yazio:import": "tsx scripts/import-yazio-foods.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
