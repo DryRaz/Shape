@@ -10,13 +10,28 @@ interface DetectedItem {
   name: string
   portion_g: number
   calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
   source: MealItemSource
   food_id: string | null
   matched_name?: string | null
   category?: string | null
 }
 
-type FoodSearchResult = Pick<Food, 'id' | 'name' | 'category' | 'subcategory' | 'portion_label' | 'portion_grams' | 'kcal_per_100g'>
+type FoodSearchResult = Pick<
+  Food,
+  | 'id'
+  | 'name'
+  | 'category'
+  | 'subcategory'
+  | 'portion_label'
+  | 'portion_grams'
+  | 'kcal_per_100g'
+  | 'protein_g_per_100g'
+  | 'carbs_g_per_100g'
+  | 'fat_g_per_100g'
+>
 
 type EntryMode = 'photo' | 'manual'
 
@@ -101,7 +116,9 @@ export default function MealCapturePage() {
       const normalized = normalizeFoodQuery(trimmed)
       const { data, error } = await supabase
         .from('foods')
-        .select('id, name, category, subcategory, portion_label, portion_grams, kcal_per_100g')
+        .select(
+          'id, name, category, subcategory, portion_label, portion_grams, kcal_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g'
+        )
         .ilike('search_name', `%${normalized}%`)
         .order('name')
         .limit(15)
@@ -118,6 +135,9 @@ export default function MealCapturePage() {
   function updateItems(newItems: DetectedItem[]) {
     setItems(newItems)
     setCalories(String(Math.round(newItems.reduce((sum, it) => sum + it.calories, 0))))
+    setProtein(String(Math.round(newItems.reduce((sum, it) => sum + it.protein_g, 0))))
+    setCarbs(String(Math.round(newItems.reduce((sum, it) => sum + it.carbs_g, 0))))
+    setFat(String(Math.round(newItems.reduce((sum, it) => sum + it.fat_g, 0))))
   }
 
   function removeItem(index: number) {
@@ -137,6 +157,9 @@ export default function MealCapturePage() {
       name: selectedFood.name,
       portion_g: portionG,
       calories: Math.round((selectedFood.kcal_per_100g * portionG) / 100),
+      protein_g: selectedFood.protein_g_per_100g !== null ? Math.round((selectedFood.protein_g_per_100g * portionG) / 100) : 0,
+      carbs_g: selectedFood.carbs_g_per_100g !== null ? Math.round((selectedFood.carbs_g_per_100g * portionG) / 100) : 0,
+      fat_g: selectedFood.fat_g_per_100g !== null ? Math.round((selectedFood.fat_g_per_100g * portionG) / 100) : 0,
       source: 'catalog',
       food_id: selectedFood.id,
       matched_name: selectedFood.name,
@@ -170,11 +193,7 @@ export default function MealCapturePage() {
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
-      setItems(data.items ?? [])
-      setCalories(String(Math.round(data.total_calories ?? 0)))
-      setProtein(String(Math.round(data.total_protein_g ?? 0)))
-      setCarbs(String(Math.round(data.total_carbs_g ?? 0)))
-      setFat(String(Math.round(data.total_fat_g ?? 0)))
+      updateItems(data.items ?? [])
     } catch (err) {
       setAnalysisError(
         err instanceof Error ? err.message : "Impossible d'analyser la photo. Vous pouvez saisir les valeurs manuellement."
@@ -230,6 +249,9 @@ export default function MealCapturePage() {
             name: item.name,
             portion_g: item.portion_g,
             kcal: item.calories,
+            protein_g: item.protein_g,
+            carbs_g: item.carbs_g,
+            fat_g: item.fat_g,
             source: item.source,
           }))
         )

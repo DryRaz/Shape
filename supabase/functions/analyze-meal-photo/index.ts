@@ -2,10 +2,12 @@
 // structured nutrition estimates. Keeps ANTHROPIC_API_KEY server-side only.
 //
 // Each detected item is then matched against the `foods` catalog (imported from
-// Yazio, see scripts/import-yazio-foods.ts) so its calories come from a real
-// value instead of the vision model's guess whenever a confident match exists.
-// If the catalog is empty (not imported yet) or no match is found, the item
-// simply keeps the vision model's own estimate.
+// Yazio, see scripts/import-yazio-foods.ts) so its calories and macros (protein/
+// carbs/fat) come from real values instead of the vision model's guess whenever
+// a confident match exists. Grounding is per-macro: if the catalog is missing
+// e.g. fat for a matched food, that one field keeps the vision estimate while
+// calories/protein/carbs still get grounded. If the catalog is empty (not
+// imported yet) or no match is found at all, the item keeps every vision estimate.
 //
 // Deploy: supabase functions deploy analyze-meal-photo
 // Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
@@ -20,12 +22,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const ANALYSIS_PROMPT = `Analyse cette photo de repas. Identifie chaque aliment visible, estime la portion en grammes, et calcule les calories et macronutriments totaux. Réponds uniquement en JSON avec la structure : { items: [{name, portion_g, calories}], total_calories, total_protein_g, total_carbs_g, total_fat_g }`
+const ANALYSIS_PROMPT = `Analyse cette photo de repas. Identifie chaque aliment visible, estime la portion en grammes, et calcule les calories et macronutriments (protéines, glucides, lipides en grammes) pour chaque aliment. Réponds uniquement en JSON avec la structure : { items: [{name, portion_g, calories, protein_g, carbs_g, fat_g}], total_calories, total_protein_g, total_carbs_g, total_fat_g }`
 
 interface RawMealItem {
   name: string
   portion_g: number
   calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
 }
 
 interface MealAnalysis {
@@ -40,6 +45,9 @@ interface GroundedMealItem {
   name: string
   portion_g: number
   calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
   source: 'catalog' | 'estimated'
   food_id: string | null
   matched_name: string | null
@@ -93,6 +101,9 @@ interface CatalogFood {
   name: string
   category: string
   kcal_per_100g: number
+  protein_g_per_100g: number | null
+  carbs_g_per_100g: number | null
+  fat_g_per_100g: number | null
   normName: string
   tokens: Set<string>
 }
@@ -104,7 +115,9 @@ async function getFoods(): Promise<CatalogFood[]> {
   if (foodsCache && Date.now() - foodsCache.loadedAt < FOODS_CACHE_TTL_MS) {
     return foodsCache.foods
   }
-  const { data, error } = await supabase.from('foods').select('id, name, category, kcal_per_100g')
+  const { data, error } = await supabase
+    .from('foods')
+    .select('id, name, category, kcal_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g')
   if (error) {
     console.error('analyze-meal-photo: failed to load foods catalog, falling back to vision estimates', error)
     foodsCache = { foods: [], loadedAt: Date.now() }
@@ -112,7 +125,17 @@ async function getFoods(): Promise<CatalogFood[]> {
   }
   const foods: CatalogFood[] = (data ?? []).map((f) => {
     const normName = normalize(f.name)
-    return { id: f.id, name: f.name, category: f.category, kcal_per_100g: f.kcal_per_100g, normName, tokens: tokenize(normName) }
+    return {
+      id: f.id,
+      name: f.name,
+      category: f.category,
+      kcal_per_100g: f.kcal_per_100g,
+      protein_g_per_100g: f.protein_g_per_100g,
+      carbs_g_per_100g: f.carbs_g_per_100g,
+      fat_g_per_100g: f.fat_g_per_100g,
+      normName,
+      tokens: tokenize(normName),
+    }
   })
   foodsCache = { foods, loadedAt: Date.now() }
   return foods
@@ -157,6 +180,11 @@ function matchFood(itemName: string, foods: CatalogFood[]): CatalogFood | null {
   return bestToken && bestScore >= JACCARD_THRESHOLD ? bestToken : null
 }
 
+/** Grounds one macro in the catalog's per-100g value when available, otherwise keeps the vision model's own estimate for that macro. */
+function groundMacro(perHundredG: number | null, portionG: number, visionEstimate: number): number {
+  return perHundredG !== null ? Math.round((perHundredG * portionG) / 100) : visionEstimate
+}
+
 async function groundItems(items: RawMealItem[]): Promise<{ items: GroundedMealItem[]; matchedCount: number }> {
   const foods = await getFoods()
   let matchedCount = 0
@@ -168,6 +196,9 @@ async function groundItems(items: RawMealItem[]): Promise<{ items: GroundedMealI
         name: item.name,
         portion_g: item.portion_g,
         calories: Math.round((match.kcal_per_100g * item.portion_g) / 100),
+        protein_g: groundMacro(match.protein_g_per_100g, item.portion_g, item.protein_g),
+        carbs_g: groundMacro(match.carbs_g_per_100g, item.portion_g, item.carbs_g),
+        fat_g: groundMacro(match.fat_g_per_100g, item.portion_g, item.fat_g),
         source: 'catalog',
         food_id: match.id,
         matched_name: match.name,
@@ -178,6 +209,9 @@ async function groundItems(items: RawMealItem[]): Promise<{ items: GroundedMealI
       name: item.name,
       portion_g: item.portion_g,
       calories: item.calories,
+      protein_g: item.protein_g,
+      carbs_g: item.carbs_g,
+      fat_g: item.fat_g,
       source: 'estimated',
       food_id: null,
       matched_name: null,
@@ -237,7 +271,20 @@ Deno.serve(async (req) => {
     const analysis = extractJson(textBlock.text)
     const { items: groundedItems, matchedCount } = await groundItems(analysis.items ?? [])
 
-    return new Response(JSON.stringify({ ...analysis, items: groundedItems, matched_count: matchedCount }), {
+    // Recompute totals as the sum of the (possibly catalog-grounded) items rather than
+    // trusting the vision model's own totals, which wouldn't reflect catalog corrections.
+    const totals = groundedItems.reduce(
+      (acc, it) => {
+        acc.total_calories += it.calories
+        acc.total_protein_g += it.protein_g
+        acc.total_carbs_g += it.carbs_g
+        acc.total_fat_g += it.fat_g
+        return acc
+      },
+      { total_calories: 0, total_protein_g: 0, total_carbs_g: 0, total_fat_g: 0 }
+    )
+
+    return new Response(JSON.stringify({ items: groundedItems, ...totals, matched_count: matchedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
