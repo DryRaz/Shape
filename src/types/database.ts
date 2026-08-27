@@ -142,6 +142,9 @@ export interface Food {
   portion_grams: number
   kcal: number
   kcal_per_100g: number
+  protein_g_per_100g: number | null
+  carbs_g_per_100g: number | null
+  fat_g_per_100g: number | null
   source: string
   created_at: string
 }
@@ -155,6 +158,9 @@ export interface MealItem {
   name: string
   portion_g: number | null
   kcal: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
   source: MealItemSource
   created_at: string
 }
