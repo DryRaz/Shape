@@ -11,3 +11,4 @@ dist-ssr
 !.vscode/extensions.json
 dev-dist
 supabase/.temp
+.claude/worktrees
