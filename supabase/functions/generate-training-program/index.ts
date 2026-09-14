@@ -188,31 +188,49 @@ Deno.serve(async (req) => {
 
     const validExerciseIds = new Set(cleanExercises.map((e) => e.id))
     const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
+    const prompt = buildPrompt(typeof goalType === 'string' ? goalType : null, cleanExercises)
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-5',
-      max_tokens: 4096,
-      output_config: { effort: 'medium' },
-      messages: [{ role: 'user', content: buildPrompt(typeof goalType === 'string' ? goalType : null, cleanExercises) }],
-    })
+    // The model occasionally produces malformed JSON (truncation, or stray syntax
+    // like an inline .replace() call instead of a literal id). Retry once server-side
+    // before failing the whole request — costs one extra call in the rare case, but
+    // spares the user a manual retry for something that isn't really their fault.
+    const MAX_ATTEMPTS = 2
+    let plan: TrainingPlan | null = null
+    let lastError: unknown = null
 
-    if (response.stop_reason === 'refusal') {
-      return new Response(JSON.stringify({ error: 'La génération du programme a été refusée.' }), {
-        status: 422,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-5',
+        max_tokens: 8192,
+        output_config: { effort: 'medium' },
+        messages: [{ role: 'user', content: prompt }],
       })
+
+      if (response.stop_reason === 'refusal') {
+        return new Response(JSON.stringify({ error: 'La génération du programme a été refusée.' }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')
+      if (!textBlock) {
+        lastError = new Error('No text content in model response')
+        continue
+      }
+
+      try {
+        const raw = extractJson(textBlock.text)
+        plan = validatePlan(raw, validExerciseIds)
+        break
+      } catch (validationError) {
+        console.error(`generate-training-program: invalid model output (attempt ${attempt}/${MAX_ATTEMPTS})`, textBlock.text)
+        lastError = validationError
+      }
     }
 
-    const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')
-    if (!textBlock) throw new Error('No text content in model response')
-
-    let plan: TrainingPlan
-    try {
-      const raw = extractJson(textBlock.text)
-      plan = validatePlan(raw, validExerciseIds)
-    } catch (validationError) {
-      console.error('generate-training-program: invalid model output', textBlock.text)
-      throw validationError
+    if (!plan) {
+      throw lastError instanceof Error ? lastError : new Error('Model output invalid after retry')
     }
 
     return new Response(JSON.stringify(plan), {

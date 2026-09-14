@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -9,26 +9,32 @@ export default function ProgramGeneratePage() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
-  const startedRef = useRef(false)
+  // Guards against double-invocation (e.g. React StrictMode's double-mount in dev),
+  // not against retries: runGeneration clears it itself so a manual retry can run again.
+  const runningRef = useRef(false)
+
+  const runGeneration = useCallback(async () => {
+    if (!user || runningRef.current) return
+    runningRef.current = true
+    setError(null)
+
+    try {
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('id, name, muscle_group')
+      if (exercisesError) throw exercisesError
+
+      const programId = await generateAndSaveProgram(user.id, profile?.goal_type ?? null, exercises ?? [])
+      navigate(`/sport/programme/${programId}`, { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de générer le programme.')
+      runningRef.current = false
+    }
+  }, [user, profile, navigate])
 
   useEffect(() => {
-    if (!user || startedRef.current) return
-    startedRef.current = true
-
-    ;(async () => {
-      try {
-        const { data: exercises, error: exercisesError } = await supabase
-          .from('exercises')
-          .select('id, name, muscle_group')
-        if (exercisesError) throw exercisesError
-
-        const programId = await generateAndSaveProgram(user.id, profile?.goal_type ?? null, exercises ?? [])
-        navigate(`/sport/programme/${programId}`, { replace: true })
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Impossible de générer le programme.')
-      }
-    })()
-  }, [user, profile, navigate])
+    runGeneration()
+  }, [runGeneration])
 
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
@@ -43,13 +49,7 @@ export default function ProgramGeneratePage() {
             <button onClick={() => navigate('/sport')} className="btn-secondary">
               Retour
             </button>
-            <button
-              onClick={() => {
-                startedRef.current = false
-                setError(null)
-              }}
-              className="btn-primary"
-            >
+            <button onClick={() => runGeneration()} className="btn-primary">
               Réessayer
             </button>
           </div>
