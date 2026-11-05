@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Flame, CheckCircle2, Moon, UtensilsCrossed } from 'lucide-react'
+import { Flame, CheckCircle2, Moon, UtensilsCrossed, Dumbbell } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import RangeSwitcher from '@/components/RangeSwitcher'
-import { computeStreak, isoDate, rangeFor, todayInTimezone, type RangeKind } from '@/lib/date'
+import TrendBarChart, { type TrendPoint } from '@/components/TrendBarChart'
+import { computeStreak, isoDate, rangeFor, todayInTimezone, trailingDays, type RangeKind } from '@/lib/date'
 import type { HabitLog, HabitType, Meal, SleepLog } from '@/types/database'
+
+type TrendWindow = 7 | 30 | 90
+
+const TREND_WINDOW_OPTIONS: { value: TrendWindow; label: string }[] = [
+  { value: 7, label: '7 jours' },
+  { value: 30, label: '30 jours' },
+  { value: 90, label: '3 mois' },
+]
 
 export default function DashboardPage() {
   const { profile, user } = useAuth()
@@ -18,6 +27,12 @@ export default function DashboardPage() {
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([])
   const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const [trendWindow, setTrendWindow] = useState<TrendWindow>(7)
+  const [calorieTrend, setCalorieTrend] = useState<TrendPoint[]>([])
+  const [sleepTrend, setSleepTrend] = useState<TrendPoint[]>([])
+  const [sportTrend, setSportTrend] = useState<TrendPoint[]>([])
+  const [trendsLoading, setTrendsLoading] = useState(true)
 
   const range = useMemo(() => rangeFor(kind, anchor, timezone), [kind, anchor, timezone])
   const startIso = isoDate(range.start)
@@ -52,6 +67,58 @@ export default function DashboardPage() {
       cancelled = true
     }
   }, [user, startIso, endIso, timezone])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    setTrendsLoading(true)
+
+    async function loadTrends() {
+      const days = trailingDays(trendWindow, timezone)
+      const start = days[0]
+      const end = days[days.length - 1]
+
+      const [{ data: mealRows }, { data: sleepRows }, { data: sessionRows }] = await Promise.all([
+        supabase.from('meals').select('date, estimated_calories').eq('user_id', user!.id).gte('date', start).lte('date', end),
+        supabase.from('sleep_logs').select('date, duration_hours').eq('user_id', user!.id).gte('date', start).lte('date', end),
+        supabase
+          .from('workout_sessions')
+          .select('date, started_at, completed_at')
+          .eq('user_id', user!.id)
+          .not('completed_at', 'is', null)
+          .gte('date', start)
+          .lte('date', end),
+      ])
+      if (cancelled) return
+
+      const caloriesByDate = new Map<string, number>()
+      for (const m of mealRows ?? []) {
+        caloriesByDate.set(m.date, (caloriesByDate.get(m.date) ?? 0) + (m.estimated_calories ?? 0))
+      }
+
+      const sleepByDate = new Map<string, number>()
+      for (const s of sleepRows ?? []) {
+        if (s.duration_hours !== null) sleepByDate.set(s.date, s.duration_hours)
+      }
+
+      const sportMinutesByDate = new Map<string, number>()
+      for (const s of sessionRows ?? []) {
+        if (!s.started_at || !s.completed_at) continue
+        const minutes = (new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) / 60000
+        sportMinutesByDate.set(s.date, (sportMinutesByDate.get(s.date) ?? 0) + minutes)
+      }
+
+      setCalorieTrend(days.map((d) => ({ date: d, value: caloriesByDate.get(d) ?? 0 })))
+      setSleepTrend(days.map((d) => ({ date: d, value: sleepByDate.has(d) ? sleepByDate.get(d)! : null })))
+      setSportTrend(days.map((d) => ({ date: d, value: sportMinutesByDate.get(d) ?? 0 })))
+      setTrendsLoading(false)
+    }
+
+    loadTrends()
+    return () => {
+      cancelled = true
+    }
+  }, [user, trendWindow, timezone])
 
   const totalCalories = meals.reduce((sum, m) => sum + (m.estimated_calories ?? 0), 0)
   const daysInRange = range.days.length
@@ -130,6 +197,57 @@ export default function DashboardPage() {
               </ul>
             </div>
           </div>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-slate-300">Progression</h2>
+              <div className="flex rounded-xl bg-slate-900 p-1">
+                {TREND_WINDOW_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setTrendWindow(opt.value)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                      trendWindow === opt.value ? 'bg-brand-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {trendsLoading ? (
+              <p className="py-6 text-center text-sm text-slate-500">Chargement…</p>
+            ) : (
+              <div className="space-y-3">
+                <TrendBarChart
+                  title="Calories"
+                  icon={UtensilsCrossed}
+                  iconWrapClassName="bg-orange-500/15 text-orange-400"
+                  barClassName="bg-orange-400"
+                  unit="kcal"
+                  data={calorieTrend}
+                />
+                <TrendBarChart
+                  title="Sommeil"
+                  icon={Moon}
+                  iconWrapClassName="bg-indigo-500/15 text-indigo-400"
+                  barClassName="bg-indigo-400"
+                  unit="h"
+                  decimals={1}
+                  data={sleepTrend}
+                />
+                <TrendBarChart
+                  title="Sport"
+                  icon={Dumbbell}
+                  iconWrapClassName="bg-brand-500/15 text-brand-400"
+                  barClassName="bg-brand-400"
+                  unit="min"
+                  data={sportTrend}
+                />
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>
