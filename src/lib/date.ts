@@ -41,6 +41,12 @@ export function shiftAnchor(kind: RangeKind, anchorIso: string, direction: 1 | -
   return isoDate(addMonths(anchor, direction))
 }
 
+/** ISO dates for the trailing `days`-day window ending today (inclusive), oldest first. */
+export function trailingDays(days: number, timezone = DEFAULT_TIMEZONE): string[] {
+  const today = new Date(`${todayInTimezone(timezone)}T00:00:00`)
+  return Array.from({ length: days }, (_, i) => isoDate(addDays(today, i - (days - 1))))
+}
+
 /** Longest current run of consecutive days (ending today or yesterday) present in `datesWithActivity`. */
 export function computeStreak(datesWithActivity: Set<string>, timezone = DEFAULT_TIMEZONE): number {
   let cursor = new Date(`${todayInTimezone(timezone)}T00:00:00`)
