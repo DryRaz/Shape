@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ChevronDown, ChevronUp, Play, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -10,6 +11,7 @@ interface RoutineExerciseWithExercise extends RoutineExercise {
 }
 
 export default function RoutineEditorPage() {
+  const { t } = useTranslation()
   const { routineId: routineIdParam } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -25,7 +27,7 @@ export default function RoutineEditorPage() {
     if (!routineIdParam) {
       supabase
         .from('routines')
-        .insert({ user_id: user.id, name: 'Nouvelle routine' })
+        .insert({ user_id: user.id, name: t('routineEditor.defaultName') })
         .select('*')
         .single()
         .then(({ data }) => {
@@ -34,7 +36,7 @@ export default function RoutineEditorPage() {
       return
     }
     setRoutineId(routineIdParam)
-  }, [user, routineIdParam, navigate])
+  }, [user, routineIdParam, navigate, t])
 
   async function loadRoutine(id: string) {
     setLoading(true)
@@ -96,7 +98,7 @@ export default function RoutineEditorPage() {
   }
 
   if (loading || !routineId) {
-    return <p className="py-12 text-center text-sm text-slate-500">Chargement…</p>
+    return <p className="py-12 text-center text-sm text-slate-500">{t('common.loading')}</p>
   }
 
   return (
@@ -144,7 +146,7 @@ export default function RoutineEditorPage() {
             </div>
             <div className="grid grid-cols-4 gap-2 text-xs">
               <div>
-                <label className="label !mb-1">Séries</label>
+                <label className="label !mb-1">{t('routineEditor.sets')}</label>
                 <input
                   type="number"
                   className="input py-1.5"
@@ -153,7 +155,7 @@ export default function RoutineEditorPage() {
                 />
               </div>
               <div>
-                <label className="label !mb-1">Reps</label>
+                <label className="label !mb-1">{t('routineEditor.reps')}</label>
                 <input
                   type="number"
                   className="input py-1.5"
@@ -162,7 +164,7 @@ export default function RoutineEditorPage() {
                 />
               </div>
               <div>
-                <label className="label !mb-1">Durée (s)</label>
+                <label className="label !mb-1">{t('routineEditor.durationSeconds')}</label>
                 <input
                   type="number"
                   className="input py-1.5"
@@ -171,7 +173,7 @@ export default function RoutineEditorPage() {
                 />
               </div>
               <div>
-                <label className="label !mb-1">Repos (s)</label>
+                <label className="label !mb-1">{t('routineEditor.restSeconds')}</label>
                 <input
                   type="number"
                   className="input py-1.5"
@@ -189,13 +191,13 @@ export default function RoutineEditorPage() {
         className="btn-secondary w-full"
       >
         <Plus size={16} />
-        Ajouter un exercice
+        {t('routineEditor.addExercise')}
       </button>
 
       {items.length > 0 && (
         <button onClick={startSession} disabled={startingSession} className="btn-primary w-full">
           <Play size={16} />
-          {startingSession ? 'Démarrage…' : 'Démarrer la séance'}
+          {startingSession ? t('routineEditor.starting') : t('routineEditor.startSession')}
         </button>
       )}
     </div>

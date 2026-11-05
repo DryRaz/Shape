@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { GoalType } from '@/types/database'
+import type { AppLanguage, GoalType } from '@/types/database'
 
 interface PlanExercise {
   exercise_id: string
@@ -21,9 +21,13 @@ interface TrainingPlan {
 }
 
 /** Calls the `generate-training-program` Edge Function with the user's goal + the exercise catalog. */
-async function requestPlan(goalType: GoalType | null, exercises: { id: string; name: string; muscle_group: string | null }[]): Promise<TrainingPlan> {
+async function requestPlan(
+  goalType: GoalType | null,
+  exercises: { id: string; name: string; muscle_group: string | null }[],
+  language: AppLanguage
+): Promise<TrainingPlan> {
   const { data, error } = await supabase.functions.invoke('generate-training-program', {
-    body: { goal_type: goalType, exercises },
+    body: { goal_type: goalType, exercises, language },
   })
   if (error) throw error
   if (data?.error) throw new Error(data.error)
@@ -39,13 +43,14 @@ async function requestPlan(goalType: GoalType | null, exercises: { id: string; n
 export async function generateAndSaveProgram(
   userId: string,
   goalType: GoalType | null,
-  exercises: { id: string; name: string; muscle_group: string | null }[]
+  exercises: { id: string; name: string; muscle_group: string | null }[],
+  language: AppLanguage = 'fr'
 ): Promise<string> {
   if (exercises.length === 0) {
     throw new Error("Le catalogue d'exercices est vide — importez-le d'abord (voir le README, npm run wger:import).")
   }
 
-  const plan = await requestPlan(goalType, exercises)
+  const plan = await requestPlan(goalType, exercises, language)
 
   const { data: program, error: programError } = await supabase
     .from('programs')

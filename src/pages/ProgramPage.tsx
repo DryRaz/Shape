@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Dumbbell, Play } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -14,6 +15,7 @@ interface RoutineWithItems extends Routine {
 }
 
 export default function ProgramPage() {
+  const { t } = useTranslation()
   const { programId } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -53,14 +55,14 @@ export default function ProgramPage() {
     if (data) navigate(`/sport/seance/${data.id}`)
   }
 
-  if (loading) return <p className="py-12 text-center text-sm text-slate-500">Chargement…</p>
+  if (loading) return <p className="py-12 text-center text-sm text-slate-500">{t('common.loading')}</p>
 
   if (!program) {
     return (
       <div className="space-y-4 py-12 text-center">
-        <p className="text-sm text-slate-500">Programme introuvable.</p>
+        <p className="text-sm text-slate-500">{t('program.notFound')}</p>
         <button onClick={() => navigate('/sport')} className="btn-secondary mx-auto">
-          Retour
+          {t('common.back')}
         </button>
       </div>
     )
@@ -78,13 +80,13 @@ export default function ProgramPage() {
         </button>
         <div>
           <h1 className="text-lg font-semibold text-slate-50">{program.name}</h1>
-          <p className="text-xs text-slate-400">{routines.length} séances générées</p>
+          <p className="text-xs text-slate-400">{t('program.sessionsGenerated', { count: routines.length })}</p>
         </div>
       </header>
 
       {weeks.map((week) => (
         <section key={week}>
-          <h2 className="mb-2 text-sm font-medium text-slate-300">Semaine {week}</h2>
+          <h2 className="mb-2 text-sm font-medium text-slate-300">{t('program.week', { number: week })}</h2>
           <ul className="space-y-2">
             {routines
               .filter((r) => r.week_number === week)
@@ -101,7 +103,7 @@ export default function ProgramPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-slate-100">{r.name}</p>
                         <p className="truncate text-xs text-slate-500">
-                          {r.routine_exercises.length} exercices
+                          {t('program.exerciseCount', { count: r.routine_exercises.length })}
                           {muscleGroups.length > 0 ? ` · ${muscleGroups.join(', ')}` : ''}
                         </p>
                       </div>
@@ -111,7 +113,7 @@ export default function ProgramPage() {
                         className="btn-secondary shrink-0 px-3 py-2"
                       >
                         <Play size={16} />
-                        {startingId === r.id ? '…' : 'Démarrer'}
+                        {startingId === r.id ? '…' : t('program.start')}
                       </button>
                     </div>
                   </li>

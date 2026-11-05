@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Moon, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -15,6 +16,7 @@ function computeDuration(bedtime: string, wakeTime: string): number | null {
 }
 
 export default function SleepPage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const today = useMemo(() => todayInTimezone(timezone), [timezone])
@@ -82,28 +84,30 @@ export default function SleepPage() {
           <Moon size={22} />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Sommeil</h1>
-          <p className="text-xs text-slate-400">{avg7 !== null ? `Moyenne 7 jours : ${avg7.toFixed(1)} h` : 'Aucune donnée'}</p>
+          <h1 className="text-xl font-semibold text-slate-50">{t('sleep.title')}</h1>
+          <p className="text-xs text-slate-400">
+            {avg7 !== null ? t('sleep.avg7', { value: avg7.toFixed(1) }) : t('sleep.noData')}
+          </p>
         </div>
       </header>
 
       <form onSubmit={handleSubmit} className="card space-y-4">
-        <p className="text-sm font-medium text-slate-200">Nuit du {displayDate(today, 'd MMMM')}</p>
+        <p className="text-sm font-medium text-slate-200">{t('sleep.nightOf', { date: displayDate(today, 'd MMMM') })}</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Coucher</label>
+            <label className="label">{t('sleep.bedtime')}</label>
             <input type="time" className="input" value={bedtime} onChange={(e) => setBedtime(e.target.value)} required />
           </div>
           <div>
-            <label className="label">Réveil</label>
+            <label className="label">{t('sleep.wakeTime')}</label>
             <input type="time" className="input" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} required />
           </div>
         </div>
         <p className="text-xs text-slate-500">
-          Durée estimée : {computeDuration(bedtime, wakeTime)?.toFixed(1) ?? '—'} h
+          {t('sleep.estimatedDuration', { value: computeDuration(bedtime, wakeTime)?.toFixed(1) ?? '—' })}
         </p>
         <div>
-          <label className="label">Qualité du sommeil</label>
+          <label className="label">{t('sleep.quality')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -120,14 +124,14 @@ export default function SleepPage() {
           </div>
         </div>
         <button type="submit" className="btn-primary w-full" disabled={saving}>
-          {saving ? 'Enregistrement…' : "Enregistrer la nuit"}
+          {saving ? t('sleep.saving') : t('sleep.save')}
         </button>
       </form>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-300">Historique récent</h2>
+        <h2 className="mb-2 text-sm font-medium text-slate-300">{t('sleep.recentHistory')}</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">Chargement…</p>
+          <p className="text-sm text-slate-500">{t('common.loading')}</p>
         ) : (
           <ul className="space-y-2">
             {logs.map((log) => (
@@ -144,7 +148,7 @@ export default function SleepPage() {
                 </div>
               </li>
             ))}
-            {logs.length === 0 && <p className="text-sm text-slate-500">Aucune nuit enregistrée pour le moment.</p>}
+            {logs.length === 0 && <p className="text-sm text-slate-500">{t('sleep.noLogsYet')}</p>}
           </ul>
         )}
       </section>

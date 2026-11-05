@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Exercise } from '@/types/database'
 
 export default function ExerciseCatalogPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const routineId = searchParams.get('routineId')
@@ -61,14 +63,14 @@ export default function ExerciseCatalogPage() {
         <button onClick={() => navigate(-1)} className="btn-ghost p-2">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-xl font-semibold text-slate-50">Catalogue d'exercices</h1>
+        <h1 className="text-xl font-semibold text-slate-50">{t('exerciseCatalog.title')}</h1>
       </header>
 
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
           className="input pl-9"
-          placeholder="Rechercher un exercice…"
+          placeholder={t('exerciseCatalog.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -82,7 +84,7 @@ export default function ExerciseCatalogPage() {
               muscleFilter === '' ? 'bg-brand-500 text-slate-950' : 'bg-slate-900 text-slate-400'
             }`}
           >
-            Tous
+            {t('exerciseCatalog.all')}
           </button>
           {muscleGroups.map((mg) => (
             <button
@@ -99,10 +101,11 @@ export default function ExerciseCatalogPage() {
       )}
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">
-          Aucun exercice trouvé. Importez le catalogue avec <code>npm run wger:import</code>.
+          {t('exerciseCatalog.noneFoundBefore')} <code>npm run wger:import</code>
+          {t('exerciseCatalog.noneFoundAfter')}
         </p>
       ) : (
         <ul className="space-y-2">

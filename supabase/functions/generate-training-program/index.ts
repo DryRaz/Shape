@@ -8,12 +8,7 @@
 // Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { corsHeaders, languageInstruction } from '../_shared/edgeUtils.ts'
 
 const WEEKS = 3
 const SESSIONS_PER_WEEK = 4
@@ -103,10 +98,11 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
 }
 
 /** Validates and sanitizes the model's raw output against the exercise ids we actually offered it. */
-function validatePlan(raw: unknown, validExerciseIds: Set<string>): TrainingPlan {
+function validatePlan(raw: unknown, validExerciseIds: Set<string>, language: unknown): TrainingPlan {
   if (typeof raw !== 'object' || raw === null) throw new Error('Model response is not a JSON object')
   const obj = raw as Record<string, unknown>
-  const programName = typeof obj.program_name === 'string' && obj.program_name.trim() ? obj.program_name.trim() : 'Programme personnalisé'
+  const defaultProgramName = language === 'en' ? 'Custom program' : 'Programme personnalisé'
+  const programName = typeof obj.program_name === 'string' && obj.program_name.trim() ? obj.program_name.trim() : defaultProgramName
 
   if (!Array.isArray(obj.sessions)) throw new Error('Model response has no "sessions" array')
 
@@ -139,7 +135,9 @@ function validatePlan(raw: unknown, validExerciseIds: Set<string>): TrainingPlan
     }
     if (exercises.length === 0) continue
 
-    const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim() : `Semaine ${week} — Séance ${session}`
+    const defaultSessionName =
+      language === 'en' ? `Week ${week} — Session ${session}` : `Semaine ${week} — Séance ${session}`
+    const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim() : defaultSessionName
     seen.add(key)
     sessions.push({ week, session, name, exercises })
   }
@@ -166,7 +164,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { goal_type: goalType, exercises } = await req.json()
+    const { goal_type: goalType, exercises, language } = await req.json()
 
     if (!Array.isArray(exercises) || exercises.length === 0) {
       return new Response(JSON.stringify({ error: 'exercises must be a non-empty array' }), {
@@ -188,7 +186,8 @@ Deno.serve(async (req) => {
 
     const validExerciseIds = new Set(cleanExercises.map((e) => e.id))
     const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
-    const prompt = buildPrompt(typeof goalType === 'string' ? goalType : null, cleanExercises)
+    const prompt =
+      buildPrompt(typeof goalType === 'string' ? goalType : null, cleanExercises) + languageInstruction(language)
 
     // The model occasionally produces malformed JSON (truncation, or stray syntax
     // like an inline .replace() call instead of a literal id). Retry once server-side
@@ -207,7 +206,9 @@ Deno.serve(async (req) => {
       })
 
       if (response.stop_reason === 'refusal') {
-        return new Response(JSON.stringify({ error: 'La génération du programme a été refusée.' }), {
+        const refusalMessage =
+          language === 'en' ? 'Program generation was refused.' : 'La génération du programme a été refusée.'
+        return new Response(JSON.stringify({ error: refusalMessage }), {
           status: 422,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -221,7 +222,7 @@ Deno.serve(async (req) => {
 
       try {
         const raw = extractJson(textBlock.text)
-        plan = validatePlan(raw, validExerciseIds)
+        plan = validatePlan(raw, validExerciseIds, language)
         break
       } catch (validationError) {
         console.error(`generate-training-program: invalid model output (attempt ${attempt}/${MAX_ATTEMPTS})`, textBlock.text)

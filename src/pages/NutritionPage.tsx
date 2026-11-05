@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Camera, ChevronDown, Database, Flame, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -7,14 +8,15 @@ import RangeSwitcher from '@/components/RangeSwitcher'
 import { displayDate, isoDate, rangeFor, todayInTimezone, type RangeKind } from '@/lib/date'
 import type { Meal as MealType, MealItem, MealType as MealKind } from '@/types/database'
 
-const MEAL_LABELS: Record<MealKind, string> = {
-  breakfast: 'Petit-déjeuner',
-  lunch: 'Déjeuner',
-  dinner: 'Dîner',
-  snack: 'Collation',
+const MEAL_LABEL_KEYS: Record<MealKind, string> = {
+  breakfast: 'nutrition.mealType.breakfast',
+  lunch: 'nutrition.mealType.lunch',
+  dinner: 'nutrition.mealType.dinner',
+  snack: 'nutrition.mealType.snack',
 }
 
 export default function NutritionPage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const [kind, setKind] = useState<RangeKind>('day')
@@ -96,12 +98,12 @@ export default function NutritionPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Nutrition</h1>
-          <p className="text-xs text-slate-400">Suivi des repas et calories</p>
+          <h1 className="text-xl font-semibold text-slate-50">{t('nav.nutrition')}</h1>
+          <p className="text-xs text-slate-400">{t('nutrition.subtitle')}</p>
         </div>
         <Link to="/nutrition/nouveau" className="btn-primary">
           <Camera size={16} />
-          Repas
+          {t('nutrition.mealButton')}
         </Link>
       </header>
 
@@ -114,15 +116,19 @@ export default function NutritionPage() {
         <div className="flex-1">
           <p className="text-lg font-semibold text-slate-50">{Math.round(totalCalories)} kcal</p>
           <p className="text-xs text-slate-400">
-            P {Math.round(totalProtein)}g · G {Math.round(totalCarbs)}g · L {Math.round(totalFat)}g
+            {t('nutrition.macros', {
+              protein: Math.round(totalProtein),
+              carbs: Math.round(totalCarbs),
+              fat: Math.round(totalFat),
+            })}
           </p>
         </div>
       </div>
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : Object.keys(grouped).length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">Aucun repas enregistré sur cette période.</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('nutrition.noMeals')}</p>
       ) : (
         Object.entries(grouped).map(([date, dayMeals]) => (
           <section key={date}>
@@ -143,10 +149,13 @@ export default function NutritionPage() {
                         </div>
                       )}
                       <div className="flex-1">
-                        <p className="text-sm text-slate-200">{MEAL_LABELS[meal.meal_type]}</p>
+                        <p className="text-sm text-slate-200">{t(MEAL_LABEL_KEYS[meal.meal_type])}</p>
                         <p className="text-xs text-slate-500">
-                          P {Math.round(meal.estimated_protein_g ?? 0)}g · G {Math.round(meal.estimated_carbs_g ?? 0)}g · L{' '}
-                          {Math.round(meal.estimated_fat_g ?? 0)}g
+                          {t('nutrition.macros', {
+                            protein: Math.round(meal.estimated_protein_g ?? 0),
+                            carbs: Math.round(meal.estimated_carbs_g ?? 0),
+                            fat: Math.round(meal.estimated_fat_g ?? 0),
+                          })}
                         </p>
                       </div>
                       <p className="text-sm font-medium text-slate-100">{Math.round(meal.estimated_calories ?? 0)} kcal</p>
@@ -161,7 +170,7 @@ export default function NutritionPage() {
                     {isExpanded && items.length > 0 && (
                       <div className="space-y-1 border-t border-slate-800 pt-2">
                         <p className="text-xs text-slate-500">
-                          {matchedCount}/{items.length} depuis la base de données
+                          {t('nutrition.fromCatalog', { matched: matchedCount, total: items.length })}
                         </p>
                         <ul className="space-y-1">
                           {items.map((item) => (

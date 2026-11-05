@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Flame, CheckCircle2, Moon, UtensilsCrossed, Dumbbell, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -10,13 +11,14 @@ import type { HabitLog, HabitType, Meal, SleepLog } from '@/types/database'
 
 type TrendWindow = 7 | 30 | 90
 
-const TREND_WINDOW_OPTIONS: { value: TrendWindow; label: string }[] = [
-  { value: 7, label: '7 jours' },
-  { value: 30, label: '30 jours' },
-  { value: 90, label: '3 mois' },
+const TREND_WINDOW_KEYS: { value: TrendWindow; labelKey: string }[] = [
+  { value: 7, labelKey: 'dashboard.window7' },
+  { value: 30, labelKey: 'dashboard.window30' },
+  { value: 90, labelKey: 'dashboard.window90' },
 ]
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { profile, user } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const [kind, setKind] = useState<RangeKind>('day')
@@ -132,14 +134,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm text-slate-400">Bonjour 👋</p>
-        <h1 className="text-xl font-semibold text-slate-50">Votre tableau de bord</h1>
+        <p className="text-sm text-slate-400">{t('dashboard.greeting')}</p>
+        <h1 className="text-xl font-semibold text-slate-50">{t('dashboard.title')}</h1>
       </header>
 
       <RangeSwitcher kind={kind} anchorIso={anchor} onKindChange={setKind} onAnchorChange={setAnchor} />
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-slate-500">Chargement…</div>
+        <div className="py-12 text-center text-sm text-slate-500">{t('common.loading')}</div>
       ) : (
         <>
           <div className="card flex items-center gap-3 border-brand-500/30 bg-brand-500/5">
@@ -147,8 +149,8 @@ export default function DashboardPage() {
               <Flame size={22} />
             </div>
             <div>
-              <p className="text-lg font-semibold text-slate-50">{streak} jour{streak > 1 ? 's' : ''}</p>
-              <p className="text-xs text-slate-400">Streak en cours (habitudes)</p>
+              <p className="text-lg font-semibold text-slate-50">{t('dashboard.streak', { count: streak })}</p>
+              <p className="text-xs text-slate-400">{t('dashboard.streakLabel')}</p>
             </div>
           </div>
 
@@ -157,8 +159,8 @@ export default function DashboardPage() {
               <Trophy size={22} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-100">Défi de la semaine</p>
-              <p className="text-xs text-slate-400">Paris sur vos séances, calories et protéines</p>
+              <p className="text-sm font-medium text-slate-100">{t('dashboard.challengeCardTitle')}</p>
+              <p className="text-xs text-slate-400">{t('dashboard.challengeCardSubtitle')}</p>
             </div>
           </Link>
 
@@ -168,7 +170,7 @@ export default function DashboardPage() {
                 <UtensilsCrossed size={18} />
               </div>
               <p className="text-lg font-semibold text-slate-50">{Math.round(totalCalories)} kcal</p>
-              <p className="text-xs text-slate-400">{meals.length} repas enregistrés</p>
+              <p className="text-xs text-slate-400">{t('dashboard.mealsLogged', { count: meals.length })}</p>
             </Link>
 
             <div className="card">
@@ -178,7 +180,7 @@ export default function DashboardPage() {
               <p className="text-lg font-semibold text-slate-50">
                 {completedHabitCount}/{possibleHabitCompletions || 0}
               </p>
-              <p className="text-xs text-slate-400">Habitudes complétées</p>
+              <p className="text-xs text-slate-400">{t('dashboard.habitsCompleted')}</p>
             </div>
 
             <Link to="/sommeil" className="card block">
@@ -188,13 +190,13 @@ export default function DashboardPage() {
               <p className="text-lg font-semibold text-slate-50">
                 {avgSleep !== null ? `${avgSleep.toFixed(1)} h` : '—'}
               </p>
-              <p className="text-xs text-slate-400">Sommeil moyen</p>
+              <p className="text-xs text-slate-400">{t('dashboard.avgSleep')}</p>
             </Link>
 
             <div className="card">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Habitudes actives</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">{t('dashboard.activeHabits')}</p>
               <ul className="space-y-1.5">
-                {habitTypes.length === 0 && <li className="text-xs text-slate-500">Aucune habitude définie</li>}
+                {habitTypes.length === 0 && <li className="text-xs text-slate-500">{t('dashboard.noHabitsDefined')}</li>}
                 {habitTypes.slice(0, 4).map((h) => {
                   const done = habitLogs.some((l) => l.habit_type_id === h.id)
                   return (
@@ -210,9 +212,9 @@ export default function DashboardPage() {
 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium text-slate-300">Progression</h2>
+              <h2 className="text-sm font-medium text-slate-300">{t('dashboard.progression')}</h2>
               <div className="flex rounded-xl bg-slate-900 p-1">
-                {TREND_WINDOW_OPTIONS.map((opt) => (
+                {TREND_WINDOW_KEYS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setTrendWindow(opt.value)}
@@ -220,18 +222,18 @@ export default function DashboardPage() {
                       trendWindow === opt.value ? 'bg-brand-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
             </div>
 
             {trendsLoading ? (
-              <p className="py-6 text-center text-sm text-slate-500">Chargement…</p>
+              <p className="py-6 text-center text-sm text-slate-500">{t('common.loading')}</p>
             ) : (
               <div className="space-y-3">
                 <TrendBarChart
-                  title="Calories"
+                  title={t('dashboard.calories')}
                   icon={UtensilsCrossed}
                   iconWrapClassName="bg-orange-500/15 text-orange-400"
                   barClassName="bg-orange-400"
@@ -239,7 +241,7 @@ export default function DashboardPage() {
                   data={calorieTrend}
                 />
                 <TrendBarChart
-                  title="Sommeil"
+                  title={t('dashboard.sleep')}
                   icon={Moon}
                   iconWrapClassName="bg-indigo-500/15 text-indigo-400"
                   barClassName="bg-indigo-400"
@@ -248,7 +250,7 @@ export default function DashboardPage() {
                   data={sleepTrend}
                 />
                 <TrendBarChart
-                  title="Sport"
+                  title={t('dashboard.sport')}
                   icon={Dumbbell}
                   iconWrapClassName="bg-brand-500/15 text-brand-400"
                   barClassName="bg-brand-400"

@@ -6,6 +6,25 @@ export const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+export type AppLanguage = 'fr' | 'en'
+
+/** Appended to a prompt so the model writes its text output (names, etc.) in the user's chosen language, independent of the prompt's own (French) wording. */
+export function languageInstruction(language: unknown): string {
+  return language === 'en'
+    ? ' Write every text field (names, etc.) in English.'
+    : ' Écris tous les champs texte (noms, etc.) en français.'
+}
+
+/** The category assigned to catalog rows this backend creates itself (vision/label), as opposed to the imported Yazio catalog. */
+export function aiCatalogCategory(language: unknown): string {
+  return language === 'en' ? 'Other' : 'Divers'
+}
+
+/** Used when a nutrition label's product name couldn't be read off the packaging. */
+export function defaultLabelProductName(language: unknown): string {
+  return language === 'en' ? 'Product (label)' : 'Produit (étiquette)'
+}
+
 export function extractJson<T>(text: string): T {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
   const candidate = fenced ? fenced[1] : text

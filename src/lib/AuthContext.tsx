@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import i18n from '@/i18n'
 import type { UserProfile } from '@/types/database'
 
 interface AuthContextValue {
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle()
     if (!error && data) {
       setProfile(data as UserProfile)
+      i18n.changeLanguage((data as UserProfile).language ?? 'fr')
       return
     }
     // Normally a DB trigger provisions this row on signup; fall back just in case
@@ -33,7 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .upsert({ id: userId, email, timezone: 'Africa/Nairobi' }, { onConflict: 'id', ignoreDuplicates: false })
       .select('*')
       .single()
-    if (created) setProfile(created as UserProfile)
+    if (created) {
+      setProfile(created as UserProfile)
+      i18n.changeLanguage((created as UserProfile).language ?? 'fr')
+    }
   }
 
   useEffect(() => {

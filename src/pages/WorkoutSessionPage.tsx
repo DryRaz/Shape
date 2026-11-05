@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Check, Pause, Play, SkipForward, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Exercise, RoutineExercise, WorkoutSession } from '@/types/database'
@@ -17,6 +18,7 @@ function formatSeconds(total: number): string {
 }
 
 export default function WorkoutSessionPage() {
+  const { t } = useTranslation()
   const { sessionId } = useParams()
   const navigate = useNavigate()
 
@@ -124,13 +126,13 @@ export default function WorkoutSessionPage() {
     setPhase('summary')
   }
 
-  if (loading) return <p className="py-12 text-center text-sm text-slate-500">Chargement…</p>
+  if (loading) return <p className="py-12 text-center text-sm text-slate-500">{t('common.loading')}</p>
   if (!session || steps.length === 0) {
     return (
       <div className="space-y-4 py-12 text-center">
-        <p className="text-sm text-slate-500">Séance introuvable.</p>
+        <p className="text-sm text-slate-500">{t('workoutSession.notFound')}</p>
         <button onClick={() => navigate('/sport')} className="btn-secondary mx-auto">
-          Retour
+          {t('common.back')}
         </button>
       </div>
     )
@@ -142,10 +144,10 @@ export default function WorkoutSessionPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-500/15 text-brand-400">
           <Check size={32} />
         </div>
-        <h1 className="text-xl font-semibold text-slate-50">Séance terminée !</h1>
-        <p className="text-sm text-slate-400">{steps.length} exercices complétés.</p>
+        <h1 className="text-xl font-semibold text-slate-50">{t('workoutSession.sessionDone')}</h1>
+        <p className="text-sm text-slate-400">{t('workoutSession.exercisesCompleted', { count: steps.length })}</p>
         <button onClick={() => navigate('/sport')} className="btn-primary">
-          Retour au sport
+          {t('workoutSession.backToSport')}
         </button>
       </div>
     )
@@ -169,12 +171,12 @@ export default function WorkoutSessionPage() {
 
       {phase === 'rest' ? (
         <div className="flex flex-col items-center gap-6 py-10 text-center">
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-400">Repos</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-slate-400">{t('workoutSession.rest')}</p>
           <p className="text-6xl font-bold text-brand-400">{formatSeconds(secondsLeft)}</p>
-          <p className="text-sm text-slate-500">Prochain : {steps[index + 1]?.exercises.name}</p>
+          <p className="text-sm text-slate-500">{t('workoutSession.next', { name: steps[index + 1]?.exercises.name })}</p>
           <button onClick={goToNext} className="btn-secondary">
             <SkipForward size={16} />
-            Passer le repos
+            {t('workoutSession.skipRest')}
           </button>
         </div>
       ) : (
@@ -188,7 +190,7 @@ export default function WorkoutSessionPage() {
               />
             ) : (
               <div className="flex h-64 w-full items-center justify-center rounded-2xl bg-slate-900 text-slate-600">
-                Pas de visuel
+                {t('workoutSession.noVisual')}
               </div>
             )}
             <div>
@@ -208,19 +210,22 @@ export default function WorkoutSessionPage() {
                   className="btn-secondary"
                 >
                   {timerRunning ? <Pause size={16} /> : <Play size={16} />}
-                  {timerRunning ? 'Pause' : 'Reprendre'}
+                  {timerRunning ? t('workoutSession.pause') : t('workoutSession.resume')}
                 </button>
               </div>
             ) : (
               <div className="card space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-slate-200">
-                    Série {Math.min(setsCompleted + 1, current.sets ?? 1)}/{current.sets ?? 1}
+                    {t('workoutSession.setProgress', {
+                      current: Math.min(setsCompleted + 1, current.sets ?? 1),
+                      total: current.sets ?? 1,
+                    })}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">Répétitions</label>
+                    <label className="label">{t('workoutSession.reps')}</label>
                     <input
                       type="number"
                       className="input"
@@ -229,7 +234,7 @@ export default function WorkoutSessionPage() {
                     />
                   </div>
                   <div>
-                    <label className="label">Charge (kg)</label>
+                    <label className="label">{t('workoutSession.weight')}</label>
                     <input
                       type="number"
                       className="input"
@@ -244,7 +249,7 @@ export default function WorkoutSessionPage() {
                   disabled={setsCompleted >= (current.sets ?? 1)}
                 >
                   <Check size={16} />
-                  Série terminée
+                  {t('workoutSession.setDone')}
                 </button>
               </div>
             )}
@@ -256,7 +261,7 @@ export default function WorkoutSessionPage() {
                 current.duration_seconds ? secondsLeft > 0 : setsCompleted < (current.sets ?? 1)
               }
             >
-              {index < steps.length - 1 ? "Exercice suivant" : 'Terminer la séance'}
+              {index < steps.length - 1 ? t('workoutSession.nextExercise') : t('workoutSession.finishSession')}
             </button>
           </div>
         )

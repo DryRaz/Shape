@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/AuthContext'
 import Layout from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
@@ -18,11 +19,12 @@ import RemindersPage from '@/pages/RemindersPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
+  const { t } = useTranslation()
   const { session, loading } = useAuth()
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-slate-400">
-        Chargement…
+        {t('common.loading')}
       </div>
     )
   }

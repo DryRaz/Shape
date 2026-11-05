@@ -8,6 +8,7 @@ export type HabitCategory = 'sleep' | 'sport' | 'nutrition' | 'reading' | 'spiri
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type ReminderChannel = 'push' | 'email'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
+export type AppLanguage = 'fr' | 'en'
 
 export interface UserProfile {
   id: string
@@ -18,6 +19,7 @@ export interface UserProfile {
   sex: Sex | null
   goal_type: GoalType | null
   activity_level: ActivityLevel | null
+  language: AppLanguage
   created_at: string
 }
 
