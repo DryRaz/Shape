@@ -17,6 +17,7 @@ export default defineConfig({
         name: 'Shape — Habitudes & Bien-être',
         short_name: 'Shape',
         description: "Suivi quotidien du sommeil, du sport, de la nutrition et du temps spirituel.",
+        lang: 'fr',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

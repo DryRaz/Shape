@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { BellRing, LogOut, Scale } from 'lucide-react'
+import { BellRing, Check, Download, LogOut, Scale, Share } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
+import { useInstallPrompt } from '@/lib/useInstallPrompt'
 import { displayDate, todayInTimezone } from '@/lib/date'
 import type { GoalType, Sex, WeightLog } from '@/types/database'
 
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const { user, profile, refreshProfile, signOut } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const today = useMemo(() => todayInTimezone(timezone), [timezone])
+  const { installed, canPromptInstall, needsIosInstructions, promptInstall } = useInstallPrompt()
 
   const [heightCm, setHeightCm] = useState('')
   const [age, setAge] = useState('')
@@ -99,6 +101,30 @@ export default function SettingsPage() {
         <BellRing size={20} className="text-brand-400" />
         <span className="flex-1 text-sm text-slate-200">Gérer les rappels</span>
       </Link>
+
+      {canPromptInstall && (
+        <button onClick={promptInstall} className="card flex w-full items-center gap-3 text-left">
+          <Download size={20} className="text-brand-400" />
+          <span className="flex-1 text-sm text-slate-200">Installer l'application</span>
+        </button>
+      )}
+
+      {needsIosInstructions && (
+        <div className="card flex items-center gap-3">
+          <Share size={20} className="shrink-0 text-brand-400" />
+          <span className="flex-1 text-sm text-slate-300">
+            Pour installer : appuyez sur <span className="font-medium text-slate-100">Partager</span> puis{' '}
+            <span className="font-medium text-slate-100">Sur l'écran d'accueil</span>.
+          </span>
+        </div>
+      )}
+
+      {installed && (
+        <div className="card flex items-center gap-3 text-sm text-slate-400">
+          <Check size={18} className="shrink-0 text-brand-400" />
+          Application installée
+        </div>
+      )}
 
       <form onSubmit={handleProfileSubmit} className="card space-y-4">
         <p className="text-sm font-medium text-slate-200">Informations personnelles</p>
