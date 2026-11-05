@@ -107,7 +107,7 @@ export default function HabitsPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Lecture & Temps spirituel</h1>
+          <h1 className="text-xl font-semibold text-slate-50">To do & To read</h1>
           <p className="text-xs text-slate-400">Habitudes personnalisées</p>
         </div>
         <button onClick={() => setShowForm((s) => !s)} className="btn-primary">
