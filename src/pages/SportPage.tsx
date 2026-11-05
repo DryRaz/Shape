@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Dumbbell, ListChecks, Play, Plus, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -7,6 +8,7 @@ import { displayDate } from '@/lib/date'
 import type { Program, Routine, WorkoutSession } from '@/types/database'
 
 export default function SportPage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const [routines, setRoutines] = useState<Routine[]>([])
   const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([])
@@ -37,12 +39,12 @@ export default function SportPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Sport</h1>
-          <p className="text-xs text-slate-400">Routines et séances d'entraînement</p>
+          <h1 className="text-xl font-semibold text-slate-50">{t('nav.sport')}</h1>
+          <p className="text-xs text-slate-400">{t('sport.subtitle')}</p>
         </div>
         <Link to="/sport/exercices" className="btn-ghost">
           <Dumbbell size={16} />
-          Exercices
+          {t('sport.exercises')}
         </Link>
       </header>
 
@@ -52,25 +54,25 @@ export default function SportPage() {
             <Sparkles size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-100">Programme généré par IA</p>
-            <p className="text-xs text-slate-500">3 semaines · 4 séances/semaine, adapté à votre objectif</p>
+            <p className="text-sm font-medium text-slate-100">{t('sport.aiProgramTitle')}</p>
+            <p className="text-xs text-slate-500">{t('sport.aiProgramSubtitle')}</p>
           </div>
         </div>
         {!profile?.goal_type && (
           <p className="text-xs text-amber-400">
-            Renseignez votre objectif dans <Link to="/profil" className="underline">votre profil</Link> pour un
-            programme mieux adapté (vous pouvez générer sans, un programme équilibré sera utilisé).
+            {t('sport.setGoalBefore')} <Link to="/profil" className="underline">{t('nav.profile').toLowerCase()}</Link>
+            {t('sport.setGoalAfter')}
           </p>
         )}
         <Link to="/sport/programme/nouveau" className="btn-primary w-full">
           <Sparkles size={16} />
-          Générer mon programme
+          {t('sport.generateProgram')}
         </Link>
       </section>
 
       {programs.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-medium text-slate-300">Mes programmes</h2>
+          <h2 className="mb-2 text-sm font-medium text-slate-300">{t('sport.myPrograms')}</h2>
           <ul className="space-y-2">
             {programs.map((p) => (
               <li key={p.id} className="card py-3">
@@ -86,17 +88,17 @@ export default function SportPage() {
 
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-300">Mes routines</h2>
+          <h2 className="text-sm font-medium text-slate-300">{t('sport.myRoutines')}</h2>
           <Link to="/sport/routines/nouveau" className="text-xs font-medium text-brand-400">
             <Plus size={14} className="mr-1 inline" />
-            Nouvelle
+            {t('sport.newRoutine')}
           </Link>
         </div>
         {loading ? (
-          <p className="text-sm text-slate-500">Chargement…</p>
+          <p className="text-sm text-slate-500">{t('common.loading')}</p>
         ) : routines.length === 0 ? (
           <div className="card text-center text-sm text-slate-500">
-            Aucune routine. Créez-en une pour commencer.
+            {t('sport.noRoutines')}
           </div>
         ) : (
           <ul className="space-y-2">
@@ -118,9 +120,9 @@ export default function SportPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-300">Séances récentes</h2>
+        <h2 className="mb-2 text-sm font-medium text-slate-300">{t('sport.recentSessions')}</h2>
         {recentSessions.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucune séance terminée pour le moment.</p>
+          <p className="text-sm text-slate-500">{t('sport.noSessionsYet')}</p>
         ) : (
           <ul className="space-y-2">
             {recentSessions.map((s) => (

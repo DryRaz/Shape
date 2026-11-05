@@ -25,9 +25,8 @@ export interface UpsertFoodInput {
   carbsPer100g: number
   fatPer100g: number
   source: string
+  category: string
 }
-
-const CATALOG_CATEGORY_FOR_AI_ENTRIES = 'Divers'
 
 export async function upsertFoodFrom100gBasis(
   supabase: SupabaseClient,
@@ -41,7 +40,7 @@ export async function upsertFoodFrom100gBasis(
     .upsert(
       {
         name,
-        category: CATALOG_CATEGORY_FOR_AI_ENTRIES,
+        category: input.category,
         subcategory: null,
         portion_label: '100 g',
         portion_grams: 100,

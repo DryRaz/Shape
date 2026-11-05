@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Calculator, CheckCircle2, Flame, Lightbulb, Pencil, Trophy, X, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { displayDate, todayInTimezone, weekEndIso, weekStartIso } from '@/lib/date'
-import { computeNutritionGoal, missingFieldsFor, MISSING_FIELD_LABELS } from '@/lib/nutritionGoals'
+import { computeNutritionGoal, missingFieldsFor, MISSING_FIELD_KEYS } from '@/lib/nutritionGoals'
 import type { WeeklyChallenge } from '@/types/database'
 
 interface WeekActuals {
@@ -30,11 +32,11 @@ interface MetricResult {
   hit: boolean
 }
 
-function computeMetrics(challenge: WeeklyChallenge, actuals: WeekActuals): MetricResult[] {
+function computeMetrics(challenge: WeeklyChallenge, actuals: WeekActuals, t: TFunction): MetricResult[] {
   return [
     {
       key: 'sessions',
-      label: 'Séances de sport',
+      label: t('challenge.metric.sessions'),
       unit: '',
       target: challenge.target_sessions,
       actual: actuals.sessions,
@@ -42,7 +44,7 @@ function computeMetrics(challenge: WeeklyChallenge, actuals: WeekActuals): Metri
     },
     {
       key: 'calories',
-      label: 'Calories',
+      label: t('challenge.metric.calories'),
       unit: 'kcal',
       target: challenge.target_calories,
       actual: Math.round(actuals.calories),
@@ -50,7 +52,7 @@ function computeMetrics(challenge: WeeklyChallenge, actuals: WeekActuals): Metri
     },
     {
       key: 'protein',
-      label: 'Protéines',
+      label: t('challenge.metric.protein'),
       unit: 'g',
       target: challenge.target_protein_g,
       actual: Math.round(actuals.protein),
@@ -59,28 +61,23 @@ function computeMetrics(challenge: WeeklyChallenge, actuals: WeekActuals): Metri
   ]
 }
 
-function suggestionFor(metric: MetricResult): string | null {
+function suggestionFor(metric: MetricResult, t: TFunction): string | null {
   if (metric.hit) return null
   const under = metric.actual < metric.target
   switch (metric.key) {
     case 'sessions':
-      return under
-        ? 'Moins de séances que prévu : planifiez-les à l’avance dans votre agenda, ou visez un objectif un peu plus bas la semaine prochaine.'
-        : 'Plus de séances que prévu, beau travail ! Vous pouvez viser un peu plus haut la semaine prochaine.'
+      return t(under ? 'challenge.suggestion.sessionsUnder' : 'challenge.suggestion.sessionsOver')
     case 'calories':
-      return under
-        ? 'Moins de calories que prévu : vérifiez que vous mangez assez pour votre niveau d’activité.'
-        : 'Plus de calories que prévu : surveillez les portions ou les collations entre les repas.'
+      return t(under ? 'challenge.suggestion.caloriesUnder' : 'challenge.suggestion.caloriesOver')
     case 'protein':
-      return under
-        ? 'Moins de protéines que prévu : ajoutez une source de protéines à chaque repas (œufs, légumineuses, viande, poisson).'
-        : 'Plus de protéines que prévu : ajustez les portions si vous voulez revenir vers votre objectif.'
+      return t(under ? 'challenge.suggestion.proteinUnder' : 'challenge.suggestion.proteinOver')
     default:
       return null
   }
 }
 
 function MetricRow({ metric }: { metric: MetricResult }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="flex items-center gap-2 text-slate-300">
@@ -93,13 +90,15 @@ function MetricRow({ metric }: { metric: MetricResult }) {
       </span>
       <span className="text-xs text-slate-400">
         {metric.actual}
-        {metric.unit} <span className="text-slate-600">/ objectif {metric.target}{metric.unit}</span>
+        {metric.unit}{' '}
+        <span className="text-slate-600">{t('challenge.ofTarget', { target: metric.target, unit: metric.unit })}</span>
       </span>
     </div>
   )
 }
 
 export default function ChallengePage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const today = useMemo(() => todayInTimezone(timezone), [timezone])
@@ -248,48 +247,59 @@ export default function ChallengePage() {
     setPopupChallenge(null)
   }
 
-  const popupMetrics = popupChallenge ? computeMetrics(popupChallenge, actualsByWeek[popupChallenge.week_start] ?? EMPTY_ACTUALS) : null
+  const popupMetrics = popupChallenge
+    ? computeMetrics(popupChallenge, actualsByWeek[popupChallenge.week_start] ?? EMPTY_ACTUALS, t)
+    : null
   const popupSuccess = popupMetrics ? popupMetrics.every((m) => m.hit) : false
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-slate-50">Défi de la semaine</h1>
-        <p className="text-xs text-slate-400">Paris sur vos objectifs, bilan en fin de semaine</p>
+        <h1 className="text-xl font-semibold text-slate-50">{t('challenge.title')}</h1>
+        <p className="text-xs text-slate-400">{t('challenge.subtitle')}</p>
       </header>
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : (
         <>
           {showForm ? (
             <form onSubmit={handleSubmit} className="card space-y-4">
               <p className="text-sm font-medium text-slate-100">
-                Votre pari pour la semaine du {displayDate(currentWeekStart)} au {displayDate(currentWeekEnd)}
+                {t('challenge.betForWeek', { start: displayDate(currentWeekStart), end: displayDate(currentWeekEnd) })}
               </p>
 
               {showCalculator ? (
                 <div className="space-y-3 rounded-xl bg-slate-800/60 p-3">
                   {suggestedGoal ? (
                     <>
-                      <p className="text-xs text-slate-400">
-                        Basé sur votre profil (objectif, taille, âge, sexe, niveau d'activité et dernier poids
-                        enregistré).
-                      </p>
+                      <p className="text-xs text-slate-400">{t('challenge.basedOnProfile')}</p>
                       <ul className="space-y-1 text-sm text-slate-200">
-                        <li>{suggestedGoal.weeklySessions} séances de sport / semaine</li>
-                        <li>{suggestedGoal.weeklyCalories} kcal / semaine ({suggestedGoal.dailyCalories} kcal/jour)</li>
-                        <li>{suggestedGoal.weeklyProteinG} g de protéines / semaine ({suggestedGoal.dailyProteinG} g/jour)</li>
+                        <li>{t('challenge.suggestedSessions', { count: suggestedGoal.weeklySessions })}</li>
+                        <li>
+                          {t('challenge.suggestedCalories', {
+                            weekly: suggestedGoal.weeklyCalories,
+                            daily: suggestedGoal.dailyCalories,
+                          })}
+                        </li>
+                        <li>
+                          {t('challenge.suggestedProtein', {
+                            weekly: suggestedGoal.weeklyProteinG,
+                            daily: suggestedGoal.dailyProteinG,
+                          })}
+                        </li>
                       </ul>
                       <button type="button" onClick={useSuggestedGoal} className="btn-secondary w-full">
-                        Utiliser ces valeurs
+                        {t('challenge.useTheseValues')}
                       </button>
                     </>
                   ) : (
                     <p className="text-xs text-slate-400">
-                      Pour calculer une suggestion, complétez d'abord votre {missingFields.map((f) => MISSING_FIELD_LABELS[f]).join(', ')} dans{' '}
+                      {t('challenge.missingFieldsBefore', {
+                        fields: missingFields.map((f) => t(MISSING_FIELD_KEYS[f])).join(', '),
+                      })}{' '}
                       <Link to="/profil" className="text-brand-400 underline">
-                        votre profil
+                        {t('challenge.yourProfile')}
                       </Link>
                       .
                     </p>
@@ -302,12 +312,12 @@ export default function ChallengePage() {
                   className="flex items-center gap-1.5 text-xs font-medium text-brand-400"
                 >
                   <Calculator size={14} />
-                  Calculer mon objectif suggéré
+                  {t('challenge.calculateSuggested')}
                 </button>
               )}
 
               <div>
-                <label className="label">Séances de sport</label>
+                <label className="label">{t('challenge.metric.sessions')}</label>
                 <input
                   type="number"
                   min="0"
@@ -319,7 +329,7 @@ export default function ChallengePage() {
                 />
               </div>
               <div>
-                <label className="label">Calories sur la semaine (total)</label>
+                <label className="label">{t('challenge.caloriesWeeklyLabel')}</label>
                 <input
                   type="number"
                   min="0"
@@ -331,7 +341,7 @@ export default function ChallengePage() {
                 />
               </div>
               <div>
-                <label className="label">Protéines sur la semaine (total, g)</label>
+                <label className="label">{t('challenge.proteinWeeklyLabel')}</label>
                 <input
                   type="number"
                   min="0"
@@ -344,10 +354,10 @@ export default function ChallengePage() {
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowForm(false)} className="btn-secondary flex-1">
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn-primary flex-1" disabled={saving}>
-                  {saving ? 'Enregistrement…' : 'Valider mon pari'}
+                  {saving ? t('challenge.saving') : t('challenge.submitBet')}
                 </button>
               </div>
             </form>
@@ -355,17 +365,17 @@ export default function ChallengePage() {
             <section className="card space-y-3 border-brand-500/30 bg-brand-500/5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-100">
-                  Semaine du {displayDate(currentWeekStart)} au {displayDate(currentWeekEnd)}
+                  {t('challenge.weekOf', { start: displayDate(currentWeekStart), end: displayDate(currentWeekEnd) })}
                 </p>
                 <button onClick={() => openForm(currentChallenge)} className="btn-ghost p-1.5">
                   <Pencil size={14} />
                 </button>
               </div>
               <p className="text-xs text-slate-400">
-                {daysRemaining === 0 ? 'Dernier jour de la semaine' : `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}`}
+                {daysRemaining === 0 ? t('challenge.lastDay') : t('challenge.daysRemaining', { count: daysRemaining })}
               </p>
               <div className="space-y-2.5">
-                {computeMetrics(currentChallenge, currentActuals).map((m) => (
+                {computeMetrics(currentChallenge, currentActuals, t).map((m) => (
                   <div key={m.key} className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-slate-400">
                       <span>{m.label}</span>
@@ -389,23 +399,21 @@ export default function ChallengePage() {
                 <Trophy size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-100">Faites votre pari de la semaine</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Séances de sport, calories et protéines : estimez ce que vous allez faire cette semaine.
-                </p>
+                <p className="text-sm font-medium text-slate-100">{t('challenge.placeBetTitle')}</p>
+                <p className="mt-1 text-xs text-slate-500">{t('challenge.placeBetSubtitle')}</p>
               </div>
               <button onClick={() => openForm(null)} className="btn-primary">
-                Faire mon pari
+                {t('challenge.placeBetButton')}
               </button>
             </section>
           )}
 
           {pastChallenges.length > 0 && (
             <section className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-300">Historique</h2>
+              <h2 className="text-sm font-medium text-slate-300">{t('challenge.history')}</h2>
               <ul className="space-y-2">
                 {pastChallenges.map((c) => {
-                  const metrics = computeMetrics(c, actualsByWeek[c.week_start] ?? EMPTY_ACTUALS)
+                  const metrics = computeMetrics(c, actualsByWeek[c.week_start] ?? EMPTY_ACTUALS, t)
                   const success = metrics.every((m) => m.hit)
                   return (
                     <li key={c.id} className="card space-y-2.5">
@@ -418,7 +426,7 @@ export default function ChallengePage() {
                             success ? 'bg-brand-500/15 text-brand-400' : 'bg-amber-500/15 text-amber-400'
                           }`}
                         >
-                          {success ? 'Réussi' : 'À ajuster'}
+                          {success ? t('challenge.success') : t('challenge.adjust')}
                         </span>
                       </div>
                       {metrics.map((m) => (
@@ -448,10 +456,13 @@ export default function ChallengePage() {
                 {popupSuccess ? <Trophy size={24} /> : <Flame size={24} />}
               </div>
               <p className="text-base font-semibold text-slate-50">
-                {popupSuccess ? 'Pari réussi, bravo !' : 'Pas tout à fait, mais on progresse'}
+                {popupSuccess ? t('challenge.popupSuccessTitle') : t('challenge.popupEncourageTitle')}
               </p>
               <p className="text-xs text-slate-400">
-                Semaine du {displayDate(popupChallenge.week_start)} au {displayDate(weekEndIso(popupChallenge.week_start))}
+                {t('challenge.weekOf', {
+                  start: displayDate(popupChallenge.week_start),
+                  end: displayDate(weekEndIso(popupChallenge.week_start)),
+                })}
               </p>
             </div>
 
@@ -465,11 +476,11 @@ export default function ChallengePage() {
               <div className="space-y-2 rounded-xl bg-slate-800/60 p-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                   <Lightbulb size={14} className="text-amber-400" />
-                  Pour la semaine prochaine
+                  {t('challenge.forNextWeek')}
                 </p>
                 <ul className="space-y-1.5 text-xs text-slate-400">
                   {popupMetrics.map((m) => {
-                    const suggestion = suggestionFor(m)
+                    const suggestion = suggestionFor(m, t)
                     return suggestion ? <li key={m.key}>• {suggestion}</li> : null
                   })}
                 </ul>
@@ -477,7 +488,7 @@ export default function ChallengePage() {
             )}
 
             <button onClick={dismissPopup} className="btn-primary w-full">
-              Continuer
+              {t('common.continue')}
             </button>
           </div>
         </div>

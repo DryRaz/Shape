@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import i18n from '@/i18n'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -17,13 +18,13 @@ export async function getPushPermissionState(): Promise<NotificationPermission |
 }
 
 export async function subscribeToPush(userId: string): Promise<{ error: string | null }> {
-  if (!isPushSupported()) return { error: 'Les notifications push ne sont pas supportées sur cet appareil.' }
+  if (!isPushSupported()) return { error: i18n.t('push.unsupported') }
 
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
-  if (!vapidKey) return { error: 'Clé VAPID manquante (VITE_VAPID_PUBLIC_KEY).' }
+  if (!vapidKey) return { error: i18n.t('push.missingVapidKey') }
 
   const permission = await Notification.requestPermission()
-  if (permission !== 'granted') return { error: 'Permission refusée.' }
+  if (permission !== 'granted') return { error: i18n.t('push.permissionDenied') }
 
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.subscribe({

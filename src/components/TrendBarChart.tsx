@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import { useTranslation } from 'react-i18next'
 import { displayDate } from '@/lib/date'
 
 export interface TrendPoint {
@@ -29,6 +30,7 @@ export default function TrendBarChart({
   decimals = 0,
   data,
 }: Props) {
+  const { t } = useTranslation()
   const known = data.filter((d): d is TrendPoint & { value: number } => d.value !== null)
   const average = known.length > 0 ? known.reduce((sum, d) => sum + d.value, 0) / known.length : 0
   const max = Math.max(1, ...known.map((d) => d.value))
@@ -47,7 +49,9 @@ export default function TrendBarChart({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-slate-200">{title}</p>
           <p className="text-xs text-slate-500">
-            Moyenne : {known.length > 0 ? `${formatValue(average, decimals)} ${unit}/jour` : '—'}
+            {known.length > 0
+              ? t('trend.averagePerDay', { value: `${formatValue(average, decimals)} ${unit}` })
+              : t('trend.averageUnknown')}
           </p>
         </div>
       </div>

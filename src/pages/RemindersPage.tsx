@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bell, BellOff, Plus, Trash2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { getPushPermissionState, isPushSupported, subscribeToPush } from '@/lib/push'
 import type { HabitType, Reminder } from '@/types/database'
 
-const DAY_LABELS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
-
 export default function RemindersPage() {
+  const { t } = useTranslation()
+  const dayLabels = t('reminders.dayLetters', { returnObjects: true }) as string[]
   const { user } = useAuth()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [habitTypes, setHabitTypes] = useState<HabitType[]>([])
@@ -87,8 +88,8 @@ export default function RemindersPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Rappels</h1>
-          <p className="text-xs text-slate-400">Notifications pour vos repas et habitudes</p>
+          <h1 className="text-xl font-semibold text-slate-50">{t('reminders.title')}</h1>
+          <p className="text-xs text-slate-400">{t('reminders.subtitle')}</p>
         </div>
         <button onClick={() => setShowForm((s) => !s)} className="btn-primary">
           {showForm ? <X size={16} /> : <Plus size={16} />}
@@ -99,11 +100,11 @@ export default function RemindersPage() {
         <div className="card flex items-center gap-3">
           <Bell size={20} className="text-brand-400" />
           <div className="flex-1">
-            <p className="text-sm text-slate-200">Activer les notifications push</p>
-            <p className="text-xs text-slate-500">Recevez vos rappels même app fermée.</p>
+            <p className="text-sm text-slate-200">{t('reminders.enablePush')}</p>
+            <p className="text-xs text-slate-500">{t('reminders.enablePushSubtitle')}</p>
           </div>
           <button onClick={handleEnablePush} className="btn-secondary">
-            Activer
+            {t('reminders.enable')}
           </button>
         </div>
       )}
@@ -112,17 +113,17 @@ export default function RemindersPage() {
       {showForm && (
         <form onSubmit={handleCreate} className="card space-y-4">
           <div>
-            <label className="label">Libellé</label>
-            <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. Sport du soir" required />
+            <label className="label">{t('reminders.labelLabel')}</label>
+            <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('reminders.labelPlaceholder')} required />
           </div>
           <div>
-            <label className="label">Heure</label>
+            <label className="label">{t('reminders.timeLabel')}</label>
             <input type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} required />
           </div>
           <div>
-            <label className="label">Jours</label>
+            <label className="label">{t('reminders.daysLabel')}</label>
             <div className="flex gap-1.5">
-              {DAY_LABELS.map((d, i) => (
+              {dayLabels.map((d, i) => (
                 <button
                   type="button"
                   key={i}
@@ -138,9 +139,9 @@ export default function RemindersPage() {
           </div>
           {habitTypes.length > 0 && (
             <div>
-              <label className="label">Habitude liée (optionnel)</label>
+              <label className="label">{t('reminders.linkedHabitLabel')}</label>
               <select className="input" value={linkedHabit} onChange={(e) => setLinkedHabit(e.target.value)}>
-                <option value="">Aucune</option>
+                <option value="">{t('common.none')}</option>
                 {habitTypes.map((h) => (
                   <option key={h.id} value={h.id}>
                     {h.name}
@@ -150,15 +151,15 @@ export default function RemindersPage() {
             </div>
           )}
           <button type="submit" className="btn-primary w-full" disabled={saving}>
-            {saving ? 'Création…' : 'Créer le rappel'}
+            {saving ? t('reminders.creating') : t('reminders.create')}
           </button>
         </form>
       )}
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : reminders.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">Aucun rappel configuré.</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('reminders.noneConfigured')}</p>
       ) : (
         <ul className="space-y-2">
           {reminders.map((r) => (
@@ -169,7 +170,7 @@ export default function RemindersPage() {
               <div className="flex-1">
                 <p className="text-sm text-slate-200">{r.label}</p>
                 <p className="text-xs text-slate-500">
-                  {r.time.slice(0, 5)} · {r.days_of_week.map((d) => DAY_LABELS[d]).join(' ')}
+                  {r.time.slice(0, 5)} · {r.days_of_week.map((d) => dayLabels[d]).join(' ')}
                 </p>
               </div>
               <button onClick={() => removeReminder(r.id)} className="text-red-400">

@@ -15,7 +15,7 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
-import { corsHeaders, extractJson } from '../_shared/edgeUtils.ts'
+import { aiCatalogCategory, corsHeaders, extractJson, languageInstruction } from '../_shared/edgeUtils.ts'
 import { upsertFoodFrom100gBasis, type CatalogFoodRow } from '../_shared/foodCatalog.ts'
 
 const ANALYSIS_PROMPT = `Analyse cette photo de repas. Identifie chaque aliment visible, estime la portion en grammes, et calcule les calories et macronutriments (protéines, glucides, lipides en grammes) pour chaque aliment. Réponds uniquement en JSON avec la structure : { items: [{name, portion_g, calories, protein_g, carbs_g, fat_g}], total_calories, total_protein_g, total_carbs_g, total_fat_g }`
@@ -175,7 +175,7 @@ function groundMacro(perHundredG: number | null, portionG: number, visionEstimat
 /** A food with no confident catalog match gets added to it from the vision
  * model's own estimate, scaled to a 100g basis, so the next photo of the
  * same food is grounded instead of guessed again. */
-async function addNewlyDetectedFood(item: RawMealItem): Promise<CatalogFoodRow | null> {
+async function addNewlyDetectedFood(item: RawMealItem, language: unknown): Promise<CatalogFoodRow | null> {
   if (item.portion_g <= 0) return null
   const scale = 100 / item.portion_g
   return upsertFoodFrom100gBasis(supabase, {
@@ -185,11 +185,13 @@ async function addNewlyDetectedFood(item: RawMealItem): Promise<CatalogFoodRow |
     carbsPer100g: item.carbs_g * scale,
     fatPer100g: item.fat_g * scale,
     source: 'vision',
+    category: aiCatalogCategory(language),
   })
 }
 
 async function groundItems(
-  items: RawMealItem[]
+  items: RawMealItem[],
+  language: unknown
 ): Promise<{ items: GroundedMealItem[]; matchedCount: number; newCount: number }> {
   const foods = await getFoods()
   let matchedCount = 0
@@ -215,7 +217,7 @@ async function groundItems(
       continue
     }
 
-    const newFood = await addNewlyDetectedFood(item)
+    const newFood = await addNewlyDetectedFood(item, language)
     if (newFood) {
       newCount++
       // So a second unmatched item in this same photo (e.g. "riz" listed twice)
@@ -252,7 +254,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, mediaType } = await req.json()
+    const { imageBase64, mediaType, language } = await req.json()
     if (!imageBase64 || !mediaType) {
       return new Response(JSON.stringify({ error: 'imageBase64 and mediaType are required' }), {
         status: 400,
@@ -271,14 +273,15 @@ Deno.serve(async (req) => {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            { type: 'text', text: ANALYSIS_PROMPT },
+            { type: 'text', text: ANALYSIS_PROMPT + languageInstruction(language) },
           ],
         },
       ],
     })
 
     if (response.stop_reason === 'refusal') {
-      return new Response(JSON.stringify({ error: "L'analyse de cette photo a été refusée." }), {
+      const refusalMessage = language === 'en' ? 'Analysis of this photo was refused.' : "L'analyse de cette photo a été refusée."
+      return new Response(JSON.stringify({ error: refusalMessage }), {
         status: 422,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -288,7 +291,7 @@ Deno.serve(async (req) => {
     if (!textBlock) throw new Error('No text content in model response')
 
     const analysis = extractJson<MealAnalysis>(textBlock.text)
-    const { items: groundedItems, matchedCount, newCount } = await groundItems(analysis.items ?? [])
+    const { items: groundedItems, matchedCount, newCount } = await groundItems(analysis.items ?? [], language)
 
     // Recompute totals as the sum of the (possibly catalog-grounded) items rather than
     // trusting the vision model's own totals, which wouldn't reflect catalog corrections.

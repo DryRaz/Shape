@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Camera, Database, Loader2, Search, Sparkles, Tag, Trash2, Upload, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -35,10 +36,10 @@ type FoodSearchResult = Pick<
 
 type EntryMode = 'photo' | 'manual' | 'label'
 
-const ENTRY_MODE_OPTIONS: { value: EntryMode; label: string }[] = [
-  { value: 'photo', label: 'Photo' },
-  { value: 'label', label: 'Étiquette' },
-  { value: 'manual', label: 'Saisie manuelle' },
+const ENTRY_MODE_KEYS: { value: EntryMode; labelKey: string }[] = [
+  { value: 'photo', labelKey: 'mealCapture.mode.photo' },
+  { value: 'label', labelKey: 'mealCapture.mode.label' },
+  { value: 'manual', labelKey: 'mealCapture.mode.manual' },
 ]
 
 interface LabelAnalysis {
@@ -59,11 +60,11 @@ function normalizeFoodQuery(text: string): string {
     .toLowerCase()
 }
 
-const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
-  { value: 'breakfast', label: 'Petit-déjeuner' },
-  { value: 'lunch', label: 'Déjeuner' },
-  { value: 'dinner', label: 'Dîner' },
-  { value: 'snack', label: 'Collation' },
+const MEAL_TYPE_KEYS: { value: MealType; labelKey: string }[] = [
+  { value: 'breakfast', labelKey: 'nutrition.mealType.breakfast' },
+  { value: 'lunch', labelKey: 'nutrition.mealType.lunch' },
+  { value: 'dinner', labelKey: 'nutrition.mealType.dinner' },
+  { value: 'snack', labelKey: 'nutrition.mealType.snack' },
 ]
 
 function defaultMealType(): MealType {
@@ -87,7 +88,9 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function MealCapturePage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
+  const language = profile?.language ?? 'fr'
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -204,15 +207,13 @@ export default function MealCapturePage() {
     try {
       const base64 = await fileToBase64(file)
       const { data, error } = await supabase.functions.invoke('analyze-meal-photo', {
-        body: { imageBase64: base64, mediaType: file.type || 'image/jpeg' },
+        body: { imageBase64: base64, mediaType: file.type || 'image/jpeg', language },
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       updateItems(data.items ?? [])
     } catch (err) {
-      setAnalysisError(
-        err instanceof Error ? err.message : "Impossible d'analyser la photo. Vous pouvez saisir les valeurs manuellement."
-      )
+      setAnalysisError(err instanceof Error ? err.message : t('mealCapture.photoAnalysisError'))
     } finally {
       setAnalyzing(false)
     }
@@ -231,7 +232,7 @@ export default function MealCapturePage() {
     try {
       const base64 = await fileToBase64(file)
       const { data, error } = await supabase.functions.invoke('analyze-nutrition-label', {
-        body: { imageBase64: base64, mediaType: file.type || 'image/jpeg' },
+        body: { imageBase64: base64, mediaType: file.type || 'image/jpeg', language },
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -239,9 +240,7 @@ export default function MealCapturePage() {
       setLabelProductName(data.product_name ?? '')
       setLabelQuantity(data.suggested_portion_g ? String(data.suggested_portion_g) : '')
     } catch (err) {
-      setAnalysisError(
-        err instanceof Error ? err.message : "Impossible de lire cette étiquette. Réessayez ou saisissez les valeurs manuellement."
-      )
+      setAnalysisError(err instanceof Error ? err.message : t('mealCapture.labelAnalysisError'))
     } finally {
       setLabelAnalyzing(false)
     }
@@ -258,7 +257,7 @@ export default function MealCapturePage() {
     if (!labelResult) return
     const quantity = Number(labelQuantity)
     if (!quantity || quantity <= 0) return
-    const name = labelProductName.trim() || 'Produit (étiquette)'
+    const name = labelProductName.trim() || t('mealCapture.labelDefaultProductName')
     const newItem: DetectedItem = {
       name,
       portion_g: quantity,
@@ -269,7 +268,7 @@ export default function MealCapturePage() {
       source: 'label',
       food_id: labelResult.food_id,
       matched_name: name,
-      category: 'Divers',
+      category: t('mealCapture.aiCatalogCategory'),
     }
     updateItems([...items, newItem])
     resetLabelForm()
@@ -333,7 +332,7 @@ export default function MealCapturePage() {
 
       navigate('/nutrition')
     } catch (err) {
-      setAnalysisError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement du repas.")
+      setAnalysisError(err instanceof Error ? err.message : t('mealCapture.saveError'))
     } finally {
       setSaving(false)
     }
@@ -342,15 +341,15 @@ export default function MealCapturePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-slate-50">Nouveau repas</h1>
-        <p className="text-xs text-slate-400">Photo analysée automatiquement, corrigez si besoin</p>
+        <h1 className="text-xl font-semibold text-slate-50">{t('mealCapture.title')}</h1>
+        <p className="text-xs text-slate-400">{t('mealCapture.subtitle')}</p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="label">Type de repas</label>
+          <label className="label">{t('mealCapture.mealTypeLabel')}</label>
           <div className="grid grid-cols-4 gap-2">
-            {MEAL_TYPE_OPTIONS.map((opt) => (
+            {MEAL_TYPE_KEYS.map((opt) => (
               <button
                 type="button"
                 key={opt.value}
@@ -359,16 +358,16 @@ export default function MealCapturePage() {
                   mealType === opt.value ? 'bg-brand-500 text-slate-950' : 'bg-slate-900 text-slate-400'
                 }`}
               >
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="label">Mode de saisie</label>
+          <label className="label">{t('mealCapture.entryModeLabel')}</label>
           <div className="grid grid-cols-3 gap-2">
-            {ENTRY_MODE_OPTIONS.map((opt) => (
+            {ENTRY_MODE_KEYS.map((opt) => (
               <button
                 type="button"
                 key={opt.value}
@@ -377,7 +376,7 @@ export default function MealCapturePage() {
                   entryMode === opt.value ? 'bg-brand-500 text-slate-950' : 'bg-slate-900 text-slate-400'
                 }`}
               >
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
@@ -385,7 +384,7 @@ export default function MealCapturePage() {
 
         {entryMode === 'photo' ? (
           <div>
-            <label className="label">Photo</label>
+            <label className="label">{t('mealCapture.photoLabel')}</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -396,7 +395,7 @@ export default function MealCapturePage() {
             />
             {previewUrl ? (
               <div className="relative">
-                <img src={previewUrl} alt="Aperçu du repas" className="h-56 w-full rounded-2xl object-cover" />
+                <img src={previewUrl} alt={t('mealCapture.photoPreviewAlt')} className="h-56 w-full rounded-2xl object-cover" />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -407,7 +406,7 @@ export default function MealCapturePage() {
                 {analyzing && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-slate-950/70 text-slate-200">
                     <Loader2 size={24} className="animate-spin" />
-                    <p className="text-sm">Analyse de la photo…</p>
+                    <p className="text-sm">{t('mealCapture.analyzingPhoto')}</p>
                   </div>
                 )}
               </div>
@@ -418,14 +417,14 @@ export default function MealCapturePage() {
                 className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-700 text-slate-500"
               >
                 <Upload size={28} />
-                <span className="text-sm">Prendre ou importer une photo</span>
+                <span className="text-sm">{t('mealCapture.takeOrImportPhoto')}</span>
               </button>
             )}
           </div>
         ) : entryMode === 'label' ? (
           <div className="space-y-3">
             <div>
-              <label className="label">Photo de l'étiquette nutritionnelle</label>
+              <label className="label">{t('mealCapture.labelPhotoLabel')}</label>
               <input
                 ref={labelFileInputRef}
                 type="file"
@@ -436,7 +435,7 @@ export default function MealCapturePage() {
               />
               {labelPreviewUrl ? (
                 <div className="relative">
-                  <img src={labelPreviewUrl} alt="Aperçu de l'étiquette" className="h-56 w-full rounded-2xl object-cover" />
+                  <img src={labelPreviewUrl} alt={t('mealCapture.labelPreviewAlt')} className="h-56 w-full rounded-2xl object-cover" />
                   <button
                     type="button"
                     onClick={() => labelFileInputRef.current?.click()}
@@ -447,7 +446,7 @@ export default function MealCapturePage() {
                   {labelAnalyzing && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-slate-950/70 text-slate-200">
                       <Loader2 size={24} className="animate-spin" />
-                      <p className="text-sm">Lecture de l'étiquette…</p>
+                      <p className="text-sm">{t('mealCapture.analyzingLabel')}</p>
                     </div>
                   )}
                 </div>
@@ -458,7 +457,7 @@ export default function MealCapturePage() {
                   className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-700 text-slate-500"
                 >
                   <Tag size={28} />
-                  <span className="text-sm">Photographier le tableau nutritionnel</span>
+                  <span className="text-sm">{t('mealCapture.photographLabel')}</span>
                 </button>
               )}
             </div>
@@ -466,21 +465,25 @@ export default function MealCapturePage() {
             {labelResult && (
               <div className="card space-y-3">
                 <div>
-                  <label className="label">Nom du produit</label>
+                  <label className="label">{t('mealCapture.productNameLabel')}</label>
                   <input
                     type="text"
                     className="input"
                     value={labelProductName}
                     onChange={(e) => setLabelProductName(e.target.value)}
-                    placeholder="Produit"
+                    placeholder={t('mealCapture.productPlaceholder')}
                   />
                 </div>
                 <p className="text-xs text-slate-500">
-                  Pour 100g : {labelResult.per_100g.kcal} kcal · {labelResult.per_100g.protein_g}g protéines ·{' '}
-                  {labelResult.per_100g.carbs_g}g glucides · {labelResult.per_100g.fat_g}g lipides
+                  {t('mealCapture.per100g', {
+                    kcal: labelResult.per_100g.kcal,
+                    protein: labelResult.per_100g.protein_g,
+                    carbs: labelResult.per_100g.carbs_g,
+                    fat: labelResult.per_100g.fat_g,
+                  })}
                 </p>
                 <div>
-                  <label className="label">Quantité consommée (g)</label>
+                  <label className="label">{t('mealCapture.quantityConsumedLabel')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -492,15 +495,17 @@ export default function MealCapturePage() {
                 </div>
                 {Number(labelQuantity) > 0 && (
                   <p className="text-sm text-slate-300">
-                    Soit {Math.round((labelResult.per_100g.kcal * Number(labelQuantity)) / 100)} kcal ·{' '}
-                    {Math.round((labelResult.per_100g.protein_g * Number(labelQuantity)) / 100)}g protéines ·{' '}
-                    {Math.round((labelResult.per_100g.carbs_g * Number(labelQuantity)) / 100)}g glucides ·{' '}
-                    {Math.round((labelResult.per_100g.fat_g * Number(labelQuantity)) / 100)}g lipides
+                    {t('mealCapture.quantityPreview', {
+                      kcal: Math.round((labelResult.per_100g.kcal * Number(labelQuantity)) / 100),
+                      protein: Math.round((labelResult.per_100g.protein_g * Number(labelQuantity)) / 100),
+                      carbs: Math.round((labelResult.per_100g.carbs_g * Number(labelQuantity)) / 100),
+                      fat: Math.round((labelResult.per_100g.fat_g * Number(labelQuantity)) / 100),
+                    })}
                   </p>
                 )}
                 <div className="flex gap-2">
                   <button type="button" onClick={resetLabelForm} className="btn-ghost flex-1">
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -508,7 +513,7 @@ export default function MealCapturePage() {
                     className="btn-primary flex-1"
                     disabled={!Number(labelQuantity)}
                   >
-                    Ajouter
+                    {t('common.add')}
                   </button>
                 </div>
               </div>
@@ -517,13 +522,13 @@ export default function MealCapturePage() {
         ) : (
           <div className="space-y-3">
             <div>
-              <label className="label">Rechercher un aliment</label>
+              <label className="label">{t('mealCapture.searchFoodLabel')}</label>
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
                   className="input pl-9"
-                  placeholder="Ex. Poulet grillé"
+                  placeholder={t('mealCapture.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
@@ -533,7 +538,7 @@ export default function MealCapturePage() {
               </div>
             </div>
 
-            {searching && <p className="text-xs text-slate-500">Recherche…</p>}
+            {searching && <p className="text-xs text-slate-500">{t('mealCapture.searching')}</p>}
 
             {!selectedFood && searchResults.length > 0 && (
               <ul className="card divide-y divide-slate-800 space-y-0 p-0">
@@ -565,7 +570,7 @@ export default function MealCapturePage() {
                   </p>
                 </div>
                 <div>
-                  <label className="label">Portion (g)</label>
+                  <label className="label">{t('mealCapture.portionLabel')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -576,10 +581,10 @@ export default function MealCapturePage() {
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setSelectedFood(null)} className="btn-ghost flex-1">
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button type="button" onClick={handleAddManualItem} className="btn-primary flex-1">
-                    Ajouter
+                    {t('common.add')}
                   </button>
                 </div>
               </div>
@@ -594,11 +599,11 @@ export default function MealCapturePage() {
         {items.length > 0 && (
           <div className="card space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Aliments</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('mealCapture.foods')}</p>
               <p className="text-xs text-slate-500">
-                {items.filter((i) => i.source === 'catalog').length}/{items.length} depuis la base de données
+                {t('nutrition.fromCatalog', { matched: items.filter((i) => i.source === 'catalog').length, total: items.length })}
                 {items.some((i) => i.source === 'new') &&
-                  ` · +${items.filter((i) => i.source === 'new').length} ajoutés`}
+                  ` · ${t('mealCapture.newlyAdded', { count: items.filter((i) => i.source === 'new').length })}`}
               </p>
             </div>
             <ul className="space-y-1">
@@ -622,7 +627,7 @@ export default function MealCapturePage() {
                       type="button"
                       onClick={() => removeItem(i)}
                       className="text-slate-600 hover:text-red-400"
-                      aria-label={`Retirer ${item.name}`}
+                      aria-label={t('mealCapture.removeItem', { name: item.name })}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -635,7 +640,7 @@ export default function MealCapturePage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Calories (kcal)</label>
+            <label className="label">{t('mealCapture.caloriesLabel')}</label>
             <input
               type="number"
               inputMode="decimal"
@@ -646,7 +651,7 @@ export default function MealCapturePage() {
             />
           </div>
           <div>
-            <label className="label">Protéines (g)</label>
+            <label className="label">{t('mealCapture.proteinLabel')}</label>
             <input
               type="number"
               inputMode="decimal"
@@ -657,7 +662,7 @@ export default function MealCapturePage() {
             />
           </div>
           <div>
-            <label className="label">Glucides (g)</label>
+            <label className="label">{t('mealCapture.carbsLabel')}</label>
             <input
               type="number"
               inputMode="decimal"
@@ -668,7 +673,7 @@ export default function MealCapturePage() {
             />
           </div>
           <div>
-            <label className="label">Lipides (g)</label>
+            <label className="label">{t('mealCapture.fatLabel')}</label>
             <input
               type="number"
               inputMode="decimal"
@@ -680,7 +685,7 @@ export default function MealCapturePage() {
           </div>
         </div>
 
-        {userAdjusted && <p className="text-xs text-amber-400">Valeurs corrigées manuellement</p>}
+        {userAdjusted && <p className="text-xs text-amber-400">{t('mealCapture.manuallyAdjusted')}</p>}
 
         <div className="flex gap-2">
           <button
@@ -689,10 +694,10 @@ export default function MealCapturePage() {
             className="btn-ghost flex-1"
           >
             <X size={16} />
-            Annuler
+            {t('common.cancel')}
           </button>
           <button type="submit" className="btn-primary flex-1" disabled={saving || analyzing}>
-            {saving ? 'Enregistrement…' : 'Enregistrer le repas'}
+            {saving ? t('mealCapture.saving') : t('mealCapture.save')}
           </button>
         </div>
       </form>

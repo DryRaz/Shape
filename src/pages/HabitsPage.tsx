@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BookOpenText, Check, Plus, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { todayInTimezone } from '@/lib/date'
 import type { HabitCategory, HabitLog, HabitType, TrackingType } from '@/types/database'
 
-const CATEGORY_OPTIONS: { value: HabitCategory; label: string }[] = [
-  { value: 'reading', label: 'Lecture' },
-  { value: 'spiritual', label: 'Temps spirituel' },
-  { value: 'other', label: 'Autre' },
+const CATEGORY_KEYS: { value: HabitCategory; labelKey: string }[] = [
+  { value: 'reading', labelKey: 'habits.category.reading' },
+  { value: 'spiritual', labelKey: 'habits.category.spiritual' },
+  { value: 'other', labelKey: 'habits.category.other' },
 ]
 
 export default function HabitsPage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const timezone = profile?.timezone ?? 'Africa/Nairobi'
   const today = useMemo(() => todayInTimezone(timezone), [timezone])
@@ -107,68 +109,68 @@ export default function HabitsPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">To do & To read</h1>
-          <p className="text-xs text-slate-400">Habitudes personnalisées</p>
+          <h1 className="text-xl font-semibold text-slate-50">{t('habits.title')}</h1>
+          <p className="text-xs text-slate-400">{t('habits.subtitle')}</p>
         </div>
         <button onClick={() => setShowForm((s) => !s)} className="btn-primary">
           {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? 'Fermer' : 'Habitude'}
+          {showForm ? t('common.close') : t('habits.habitButton')}
         </button>
       </header>
 
       {showForm && (
         <form onSubmit={handleCreate} className="card space-y-4">
           <div>
-            <label className="label">Nom</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Lecture biblique" required />
+            <label className="label">{t('habits.nameLabel')}</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('habits.namePlaceholder')} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Catégorie</label>
+              <label className="label">{t('habits.categoryLabel')}</label>
               <select className="input" value={category} onChange={(e) => setCategory(e.target.value as HabitCategory)}>
-                {CATEGORY_OPTIONS.map((c) => (
+                {CATEGORY_KEYS.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
+                    {t(c.labelKey)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Type de suivi</label>
+              <label className="label">{t('habits.trackingTypeLabel')}</label>
               <select className="input" value={trackingType} onChange={(e) => setTrackingType(e.target.value as TrackingType)}>
-                <option value="boolean">Fait / pas fait</option>
-                <option value="quantity">Quantité</option>
+                <option value="boolean">{t('habits.trackingBoolean')}</option>
+                <option value="quantity">{t('habits.trackingQuantity')}</option>
               </select>
             </div>
           </div>
           {trackingType === 'quantity' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Objectif</label>
+                <label className="label">{t('habits.targetLabel')}</label>
                 <input type="number" className="input" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder="30" />
               </div>
               <div>
-                <label className="label">Unité</label>
-                <input className="input" value={targetUnit} onChange={(e) => setTargetUnit(e.target.value)} placeholder="minutes" />
+                <label className="label">{t('habits.unitLabel')}</label>
+                <input className="input" value={targetUnit} onChange={(e) => setTargetUnit(e.target.value)} placeholder={t('habits.unitPlaceholder')} />
               </div>
             </div>
           )}
           <div>
-            <label className="label">Rappel (optionnel)</label>
+            <label className="label">{t('habits.reminderLabel')}</label>
             <input type="time" className="input" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} />
           </div>
           <button type="submit" className="btn-primary w-full" disabled={saving}>
-            {saving ? 'Création…' : "Créer l'habitude"}
+            {saving ? t('habits.creating') : t('habits.create')}
           </button>
         </form>
       )}
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : habitTypes.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 py-10 text-center text-sm text-slate-500">
           <BookOpenText size={28} />
-          Aucune habitude définie pour le moment.
+          {t('habits.noneYet')}
         </div>
       ) : (
         <ul className="space-y-2">
@@ -179,8 +181,10 @@ export default function HabitsPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-100">{habit.name}</p>
                   <p className="text-xs text-slate-500">
-                    {CATEGORY_OPTIONS.find((c) => c.value === habit.category)?.label}
-                    {habit.target_value ? ` · Objectif ${habit.target_value} ${habit.target_unit ?? ''}` : ''}
+                    {t(CATEGORY_KEYS.find((c) => c.value === habit.category)?.labelKey ?? 'habits.category.other')}
+                    {habit.target_value
+                      ? ` · ${t('habits.targetSummary', { value: habit.target_value, unit: habit.target_unit ?? '' })}`
+                      : ''}
                   </p>
                 </div>
                 {habit.tracking_type === 'boolean' ? (

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { generateAndSaveProgram } from '@/lib/programGenerator'
 
 export default function ProgramGeneratePage() {
+  const { t } = useTranslation()
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
@@ -24,13 +26,18 @@ export default function ProgramGeneratePage() {
         .select('id, name, muscle_group')
       if (exercisesError) throw exercisesError
 
-      const programId = await generateAndSaveProgram(user.id, profile?.goal_type ?? null, exercises ?? [])
+      const programId = await generateAndSaveProgram(
+        user.id,
+        profile?.goal_type ?? null,
+        exercises ?? [],
+        profile?.language ?? 'fr'
+      )
       navigate(`/sport/programme/${programId}`, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de générer le programme.')
+      setError(err instanceof Error ? err.message : t('programGenerate.error'))
       runningRef.current = false
     }
-  }, [user, profile, navigate])
+  }, [user, profile, navigate, t])
 
   useEffect(() => {
     runGeneration()
@@ -43,23 +50,21 @@ export default function ProgramGeneratePage() {
       </div>
       {error ? (
         <>
-          <h1 className="text-lg font-semibold text-slate-50">Échec de la génération</h1>
+          <h1 className="text-lg font-semibold text-slate-50">{t('programGenerate.failedTitle')}</h1>
           <p className="max-w-xs text-sm text-red-400">{error}</p>
           <div className="flex gap-2">
             <button onClick={() => navigate('/sport')} className="btn-secondary">
-              Retour
+              {t('common.back')}
             </button>
             <button onClick={() => runGeneration()} className="btn-primary">
-              Réessayer
+              {t('programGenerate.retry')}
             </button>
           </div>
         </>
       ) : (
         <>
-          <h1 className="text-lg font-semibold text-slate-50">Génération de votre programme…</h1>
-          <p className="max-w-xs text-sm text-slate-400">
-            Claude prépare 3 semaines de séances adaptées à votre objectif. Cela prend quelques secondes.
-          </p>
+          <h1 className="text-lg font-semibold text-slate-50">{t('programGenerate.generatingTitle')}</h1>
+          <p className="max-w-xs text-sm text-slate-400">{t('programGenerate.generatingSubtitle')}</p>
         </>
       )}
     </div>

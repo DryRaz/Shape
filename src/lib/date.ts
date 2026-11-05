@@ -1,8 +1,13 @@
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { enUS, fr } from 'date-fns/locale'
+import i18n from '@/i18n'
 
 export const DEFAULT_TIMEZONE = 'Africa/Nairobi'
+
+function currentDateFnsLocale() {
+  return i18n.language === 'en' ? enUS : fr
+}
 
 /** Today's date (YYYY-MM-DD) as seen from the user's timezone. */
 export function todayInTimezone(timezone = DEFAULT_TIMEZONE): string {
@@ -14,7 +19,7 @@ export function isoDate(date: Date): string {
 }
 
 export function displayDate(iso: string, pattern = 'EEE d MMM'): string {
-  return format(new Date(`${iso}T00:00:00`), pattern, { locale: fr })
+  return format(new Date(`${iso}T00:00:00`), pattern, { locale: currentDateFnsLocale() })
 }
 
 export type RangeKind = 'day' | 'week' | 'month'

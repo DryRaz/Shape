@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/AuthContext'
 import { Sparkles } from 'lucide-react'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const { session, signInWithEmail } = useAuth()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
@@ -31,28 +33,26 @@ export default function LoginPage() {
             <Sparkles size={28} />
           </div>
           <h1 className="text-2xl font-semibold text-slate-50">Shape</h1>
-          <p className="text-sm text-slate-400">
-            Sommeil, sport, nutrition et temps spirituel — un seul endroit pour suivre vos habitudes.
-          </p>
+          <p className="text-sm text-slate-400">{t('login.tagline')}</p>
         </div>
 
         {status === 'sent' ? (
           <div className="card text-center text-sm text-slate-300">
-            Un lien de connexion a été envoyé à <span className="font-medium text-slate-100">{email}</span>.
-            Ouvrez-le depuis cet appareil pour vous connecter.
+            {t('login.linkSentBefore')} <span className="font-medium text-slate-100">{email}</span>
+            {t('login.linkSentAfter')}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="label">
-                Adresse e-mail
+                {t('login.emailLabel')}
               </label>
               <input
                 id="email"
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="vous@exemple.com"
+                placeholder={t('login.emailPlaceholder')}
                 className="input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -60,7 +60,7 @@ export default function LoginPage() {
             </div>
             {status === 'error' && <p className="text-sm text-red-400">{errorMsg}</p>}
             <button type="submit" className="btn-primary w-full" disabled={status === 'sending'}>
-              {status === 'sending' ? 'Envoi…' : 'Recevoir le lien de connexion'}
+              {status === 'sending' ? t('login.sending') : t('login.submit')}
             </button>
           </form>
         )}

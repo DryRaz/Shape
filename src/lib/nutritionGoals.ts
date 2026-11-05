@@ -20,12 +20,12 @@ const ACTIVITY_WEEKLY_SESSIONS: Record<ActivityLevel, number> = {
   very_active: 6,
 }
 
-export const ACTIVITY_LEVEL_OPTIONS: { value: ActivityLevel; label: string }[] = [
-  { value: 'sedentary', label: 'Sédentaire (peu ou pas de sport)' },
-  { value: 'light', label: 'Légèrement actif (1-3 séances/sem.)' },
-  { value: 'moderate', label: 'Modérément actif (3-5 séances/sem.)' },
-  { value: 'active', label: 'Actif (6-7 séances/sem.)' },
-  { value: 'very_active', label: "Très actif (sport + travail physique)" },
+export const ACTIVITY_LEVEL_KEYS: { value: ActivityLevel; labelKey: string }[] = [
+  { value: 'sedentary', labelKey: 'activityLevel.sedentary' },
+  { value: 'light', labelKey: 'activityLevel.light' },
+  { value: 'moderate', labelKey: 'activityLevel.moderate' },
+  { value: 'active', labelKey: 'activityLevel.active' },
+  { value: 'very_active', labelKey: 'activityLevel.veryActive' },
 ]
 
 const CALORIE_ADJUSTMENT: Record<GoalType, number> = {
@@ -66,13 +66,13 @@ export interface NutritionGoalInput {
 
 export type MissingField = 'sex' | 'heightCm' | 'age' | 'goalType' | 'activityLevel' | 'weightKg'
 
-export const MISSING_FIELD_LABELS: Record<MissingField, string> = {
-  sex: 'sexe',
-  heightCm: 'taille',
-  age: 'âge',
-  goalType: 'objectif',
-  activityLevel: "niveau d'activité",
-  weightKg: 'poids',
+export const MISSING_FIELD_KEYS: Record<MissingField, string> = {
+  sex: 'missingField.sex',
+  heightCm: 'missingField.heightCm',
+  age: 'missingField.age',
+  goalType: 'missingField.goalType',
+  activityLevel: 'missingField.activityLevel',
+  weightKg: 'missingField.weightKg',
 }
 
 export interface NutritionGoalResult {

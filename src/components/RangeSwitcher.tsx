@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { displayDate, shiftAnchor, type RangeKind } from '@/lib/date'
 
 interface Props {
@@ -8,15 +9,21 @@ interface Props {
   onAnchorChange: (iso: string) => void
 }
 
-const KIND_LABELS: Record<RangeKind, string> = { day: 'Jour', week: 'Semaine', month: 'Mois' }
+const KIND_KEYS: Record<RangeKind, string> = {
+  day: 'rangeSwitcher.day',
+  week: 'rangeSwitcher.week',
+  month: 'rangeSwitcher.month',
+}
 
 export default function RangeSwitcher({ kind, anchorIso, onKindChange, onAnchorChange }: Props) {
-  const pattern = kind === 'day' ? 'EEEE d MMMM' : kind === 'week' ? "'Semaine du' d MMM" : 'MMMM yyyy'
+  const { t } = useTranslation()
+  const pattern =
+    kind === 'day' ? 'EEEE d MMMM' : kind === 'week' ? `'${t('rangeSwitcher.weekOf')}' d MMM` : 'MMMM yyyy'
 
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex rounded-xl bg-slate-900 p-1">
-        {(Object.keys(KIND_LABELS) as RangeKind[]).map((k) => (
+        {(Object.keys(KIND_KEYS) as RangeKind[]).map((k) => (
           <button
             key={k}
             onClick={() => onKindChange(k)}
@@ -24,13 +31,13 @@ export default function RangeSwitcher({ kind, anchorIso, onKindChange, onAnchorC
               kind === k ? 'bg-brand-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            {KIND_LABELS[k]}
+            {t(KIND_KEYS[k])}
           </button>
         ))}
       </div>
       <div className="flex items-center gap-1 text-sm text-slate-300">
         <button
-          aria-label="Précédent"
+          aria-label={t('rangeSwitcher.previous')}
           className="rounded-lg p-1.5 hover:bg-slate-800"
           onClick={() => onAnchorChange(shiftAnchor(kind, anchorIso, -1))}
         >
@@ -38,7 +45,7 @@ export default function RangeSwitcher({ kind, anchorIso, onKindChange, onAnchorC
         </button>
         <span className="min-w-[9rem] text-center capitalize">{displayDate(anchorIso, pattern)}</span>
         <button
-          aria-label="Suivant"
+          aria-label={t('rangeSwitcher.next')}
           className="rounded-lg p-1.5 hover:bg-slate-800"
           onClick={() => onAnchorChange(shiftAnchor(kind, anchorIso, 1))}
         >

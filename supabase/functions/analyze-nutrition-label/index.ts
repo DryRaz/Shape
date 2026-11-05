@@ -10,7 +10,13 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
-import { corsHeaders, extractJson } from '../_shared/edgeUtils.ts'
+import {
+  aiCatalogCategory,
+  corsHeaders,
+  defaultLabelProductName,
+  extractJson,
+  languageInstruction,
+} from '../_shared/edgeUtils.ts'
 import { upsertFoodFrom100gBasis } from '../_shared/foodCatalog.ts'
 
 const LABEL_PROMPT = `Lis le tableau des valeurs nutritionnelles sur cette étiquette de produit alimentaire. Donne les valeurs normalisées pour 100g ou 100ml : si l'étiquette les indique seulement par portion, convertis-les toi-même en valeurs pour 100g/100ml. Indique aussi le nom du produit s'il est visible sur l'emballage, et la taille d'une portion en grammes si elle est précisée sur l'étiquette (sinon null). Réponds uniquement en JSON avec la structure : { product_name: string|null, per_100g: {kcal: number, protein_g: number, carbs_g: number, fat_g: number}, suggested_portion_g: number|null }`
@@ -43,7 +49,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, mediaType } = await req.json()
+    const { imageBase64, mediaType, language } = await req.json()
     if (!imageBase64 || !mediaType) {
       return new Response(JSON.stringify({ error: 'imageBase64 and mediaType are required' }), {
         status: 400,
@@ -62,14 +68,16 @@ Deno.serve(async (req) => {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            { type: 'text', text: LABEL_PROMPT },
+            { type: 'text', text: LABEL_PROMPT + languageInstruction(language) },
           ],
         },
       ],
     })
 
     if (response.stop_reason === 'refusal') {
-      return new Response(JSON.stringify({ error: "L'analyse de cette étiquette a été refusée." }), {
+      const refusalMessage =
+        language === 'en' ? 'Analysis of this label was refused.' : "L'analyse de cette étiquette a été refusée."
+      return new Response(JSON.stringify({ error: refusalMessage }), {
         status: 422,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -81,13 +89,17 @@ Deno.serve(async (req) => {
     const analysis = extractJson<LabelAnalysis>(textBlock.text)
     const per100g = analysis.per_100g
     if (!per100g || !Number.isFinite(per100g.kcal)) {
-      return new Response(
-        JSON.stringify({ error: "Impossible de lire les valeurs nutritionnelles sur cette étiquette." }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      const unreadableMessage =
+        language === 'en'
+          ? "Couldn't read the nutrition values on this label."
+          : "Impossible de lire les valeurs nutritionnelles sur cette étiquette."
+      return new Response(JSON.stringify({ error: unreadableMessage }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    const productName = (analysis.product_name ?? '').trim() || 'Produit (étiquette)'
+    const productName = (analysis.product_name ?? '').trim() || defaultLabelProductName(language)
     const foodRow = await upsertFoodFrom100gBasis(supabase, {
       name: productName,
       kcalPer100g: per100g.kcal,
@@ -95,6 +107,7 @@ Deno.serve(async (req) => {
       carbsPer100g: per100g.carbs_g ?? 0,
       fatPer100g: per100g.fat_g ?? 0,
       source: 'label',
+      category: aiCatalogCategory(language),
     })
 
     return new Response(
