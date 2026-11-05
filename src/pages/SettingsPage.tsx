@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { useInstallPrompt } from '@/lib/useInstallPrompt'
 import { displayDate, todayInTimezone } from '@/lib/date'
-import type { GoalType, Sex, WeightLog } from '@/types/database'
+import { ACTIVITY_LEVEL_OPTIONS } from '@/lib/nutritionGoals'
+import type { ActivityLevel, GoalType, Sex, WeightLog } from '@/types/database'
 
 const TIMEZONES = ['Africa/Nairobi', 'Europe/Paris', 'America/New_York', 'UTC']
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [age, setAge] = useState('')
   const [sex, setSex] = useState<Sex | ''>('')
   const [goalType, setGoalType] = useState<GoalType | ''>('')
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | ''>('')
   const [tz, setTz] = useState(timezone)
   const [savingProfile, setSavingProfile] = useState(false)
 
@@ -39,6 +41,7 @@ export default function SettingsPage() {
     setAge(profile.age?.toString() ?? '')
     setSex(profile.sex ?? '')
     setGoalType(profile.goal_type ?? '')
+    setActivityLevel(profile.activity_level ?? '')
     setTz(profile.timezone)
   }, [profile])
 
@@ -64,6 +67,7 @@ export default function SettingsPage() {
         age: age ? Number(age) : null,
         sex: sex || null,
         goal_type: goalType || null,
+        activity_level: activityLevel || null,
         timezone: tz,
       })
       .eq('id', user.id)
@@ -166,6 +170,21 @@ export default function SettingsPage() {
             {GOAL_OPTIONS.map((g) => (
               <option key={g.value} value={g.value}>
                 {g.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Niveau d'activité</label>
+          <select
+            className="input"
+            value={activityLevel}
+            onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
+          >
+            <option value="">—</option>
+            {ACTIVITY_LEVEL_OPTIONS.map((a) => (
+              <option key={a.value} value={a.value}>
+                {a.label}
               </option>
             ))}
           </select>

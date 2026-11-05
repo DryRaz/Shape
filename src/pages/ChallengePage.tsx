@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2, Flame, Lightbulb, Pencil, Trophy, X, XCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Calculator, CheckCircle2, Flame, Lightbulb, Pencil, Trophy, X, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { displayDate, todayInTimezone, weekEndIso, weekStartIso } from '@/lib/date'
+import { computeNutritionGoal, missingFieldsFor, MISSING_FIELD_LABELS } from '@/lib/nutritionGoals'
 import type { WeeklyChallenge } from '@/types/database'
 
 interface WeekActuals {
@@ -105,10 +107,12 @@ export default function ChallengePage() {
 
   const [challenges, setChallenges] = useState<WeeklyChallenge[]>([])
   const [actualsByWeek, setActualsByWeek] = useState<Record<string, WeekActuals>>({})
+  const [latestWeightKg, setLatestWeightKg] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [popupChallenge, setPopupChallenge] = useState<WeeklyChallenge | null>(null)
 
   const [showForm, setShowForm] = useState(false)
+  const [showCalculator, setShowCalculator] = useState(false)
   const [sessionsInput, setSessionsInput] = useState('')
   const [caloriesInput, setCaloriesInput] = useState('')
   const [proteinInput, setProteinInput] = useState('')
@@ -127,7 +131,7 @@ export default function ChallengePage() {
 
     const earliestStart = list.length > 0 ? list[list.length - 1].week_start : currentWeekStart
 
-    const [{ data: mealRows }, { data: sessionRows }] = await Promise.all([
+    const [{ data: mealRows }, { data: sessionRows }, { data: weightRows }] = await Promise.all([
       supabase
         .from('meals')
         .select('date, estimated_calories, estimated_protein_g')
@@ -141,7 +145,14 @@ export default function ChallengePage() {
         .not('completed_at', 'is', null)
         .gte('date', earliestStart)
         .lte('date', today),
+      supabase
+        .from('weight_logs')
+        .select('weight_kg')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1),
     ])
+    setLatestWeightKg(weightRows?.[0]?.weight_kg ?? null)
 
     const byWeek: Record<string, WeekActuals> = {}
     function bucket(dateIso: string): WeekActuals {
@@ -182,7 +193,27 @@ export default function ChallengePage() {
     setSessionsInput(existing ? String(existing.target_sessions) : '')
     setCaloriesInput(existing ? String(existing.target_calories) : '')
     setProteinInput(existing ? String(existing.target_protein_g) : '')
+    setShowCalculator(false)
     setShowForm(true)
+  }
+
+  const goalInput = {
+    sex: profile?.sex ?? null,
+    heightCm: profile?.height_cm ?? null,
+    age: profile?.age ?? null,
+    goalType: profile?.goal_type ?? null,
+    activityLevel: profile?.activity_level ?? null,
+    weightKg: latestWeightKg,
+  }
+  const missingFields = missingFieldsFor(goalInput)
+  const suggestedGoal = computeNutritionGoal(goalInput)
+
+  function useSuggestedGoal() {
+    if (!suggestedGoal) return
+    setSessionsInput(String(suggestedGoal.weeklySessions))
+    setCaloriesInput(String(suggestedGoal.weeklyCalories))
+    setProteinInput(String(suggestedGoal.weeklyProteinG))
+    setShowCalculator(false)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -236,6 +267,45 @@ export default function ChallengePage() {
               <p className="text-sm font-medium text-slate-100">
                 Votre pari pour la semaine du {displayDate(currentWeekStart)} au {displayDate(currentWeekEnd)}
               </p>
+
+              {showCalculator ? (
+                <div className="space-y-3 rounded-xl bg-slate-800/60 p-3">
+                  {suggestedGoal ? (
+                    <>
+                      <p className="text-xs text-slate-400">
+                        Basé sur votre profil (objectif, taille, âge, sexe, niveau d'activité et dernier poids
+                        enregistré).
+                      </p>
+                      <ul className="space-y-1 text-sm text-slate-200">
+                        <li>{suggestedGoal.weeklySessions} séances de sport / semaine</li>
+                        <li>{suggestedGoal.weeklyCalories} kcal / semaine ({suggestedGoal.dailyCalories} kcal/jour)</li>
+                        <li>{suggestedGoal.weeklyProteinG} g de protéines / semaine ({suggestedGoal.dailyProteinG} g/jour)</li>
+                      </ul>
+                      <button type="button" onClick={useSuggestedGoal} className="btn-secondary w-full">
+                        Utiliser ces valeurs
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      Pour calculer une suggestion, complétez d'abord votre {missingFields.map((f) => MISSING_FIELD_LABELS[f]).join(', ')} dans{' '}
+                      <Link to="/profil" className="text-brand-400 underline">
+                        votre profil
+                      </Link>
+                      .
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCalculator(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-brand-400"
+                >
+                  <Calculator size={14} />
+                  Calculer mon objectif suggéré
+                </button>
+              )}
+
               <div>
                 <label className="label">Séances de sport</label>
                 <input

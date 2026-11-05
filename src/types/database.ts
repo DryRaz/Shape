@@ -7,6 +7,7 @@ export type TrackingType = 'boolean' | 'quantity'
 export type HabitCategory = 'sleep' | 'sport' | 'nutrition' | 'reading' | 'spiritual' | 'other'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type ReminderChannel = 'push' | 'email'
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
 export interface UserProfile {
   id: string
@@ -16,6 +17,7 @@ export interface UserProfile {
   age: number | null
   sex: Sex | null
   goal_type: GoalType | null
+  activity_level: ActivityLevel | null
   created_at: string
 }
 
