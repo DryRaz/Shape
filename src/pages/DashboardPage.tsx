@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Flame, CheckCircle2, Moon, UtensilsCrossed, Dumbbell } from 'lucide-react'
+import { Flame, CheckCircle2, Moon, UtensilsCrossed, Dumbbell, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import RangeSwitcher from '@/components/RangeSwitcher'
@@ -151,6 +151,16 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400">Streak en cours (habitudes)</p>
             </div>
           </div>
+
+          <Link to="/defi" className="card flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+              <Trophy size={22} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-100">Défi de la semaine</p>
+              <p className="text-xs text-slate-400">Paris sur vos séances, calories et protéines</p>
+            </div>
+          </Link>
 
           <div className="grid grid-cols-2 gap-3">
             <Link to="/nutrition" className="card block">

@@ -13,6 +13,7 @@ import WorkoutSessionPage from '@/pages/WorkoutSessionPage'
 import ProgramGeneratePage from '@/pages/ProgramGeneratePage'
 import ProgramPage from '@/pages/ProgramPage'
 import HabitsPage from '@/pages/HabitsPage'
+import ChallengePage from '@/pages/ChallengePage'
 import RemindersPage from '@/pages/RemindersPage'
 import SettingsPage from '@/pages/SettingsPage'
 
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/sport/programme/:programId" element={<ProgramPage />} />
         <Route path="/sport/seance/:sessionId" element={<WorkoutSessionPage />} />
         <Route path="/habitudes" element={<HabitsPage />} />
+        <Route path="/defi" element={<ChallengePage />} />
         <Route path="/rappels" element={<RemindersPage />} />
         <Route path="/profil" element={<SettingsPage />} />
       </Route>
