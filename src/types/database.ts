@@ -185,3 +185,14 @@ export interface Reminder {
   active: boolean
   created_at: string
 }
+
+export interface WeeklyChallenge {
+  id: string
+  user_id: string
+  week_start: string
+  target_sessions: number
+  target_calories: number
+  target_protein_g: number
+  result_seen: boolean
+  created_at: string
+}

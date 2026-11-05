@@ -41,6 +41,16 @@ export function shiftAnchor(kind: RangeKind, anchorIso: string, direction: 1 | -
   return isoDate(addMonths(anchor, direction))
 }
 
+/** ISO date (Monday) of the week containing `dateIso`. */
+export function weekStartIso(dateIso: string): string {
+  return isoDate(startOfWeek(new Date(`${dateIso}T00:00:00`), { weekStartsOn: 1 }))
+}
+
+/** ISO date (Sunday) of the week that starts on `weekStartDateIso`. */
+export function weekEndIso(weekStartDateIso: string): string {
+  return isoDate(addDays(new Date(`${weekStartDateIso}T00:00:00`), 6))
+}
+
 /** ISO dates for the trailing `days`-day window ending today (inclusive), oldest first. */
 export function trailingDays(days: number, timezone = DEFAULT_TIMEZONE): string[] {
   const today = new Date(`${todayInTimezone(timezone)}T00:00:00`)
