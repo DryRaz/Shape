@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { to: '/sommeil', label: 'Sommeil', icon: Moon },
   { to: '/nutrition', label: 'Nutrition', icon: UtensilsCrossed },
   { to: '/sport', label: 'Sport', icon: Dumbbell },
-  { to: '/habitudes', label: 'Lecture', icon: BookOpenText },
+  { to: '/habitudes', label: 'To do', icon: BookOpenText },
   { to: '/profil', label: 'Profil', icon: Settings },
 ]
 
