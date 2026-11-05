@@ -15,12 +15,8 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { corsHeaders, extractJson } from '../_shared/edgeUtils.ts'
+import { upsertFoodFrom100gBasis, type CatalogFoodRow } from '../_shared/foodCatalog.ts'
 
 const ANALYSIS_PROMPT = `Analyse cette photo de repas. Identifie chaque aliment visible, estime la portion en grammes, et calcule les calories et macronutriments (protéines, glucides, lipides en grammes) pour chaque aliment. Réponds uniquement en JSON avec la structure : { items: [{name, portion_g, calories, protein_g, carbs_g, fat_g}], total_calories, total_protein_g, total_carbs_g, total_fat_g }`
 
@@ -48,19 +44,10 @@ interface GroundedMealItem {
   protein_g: number
   carbs_g: number
   fat_g: number
-  source: 'catalog' | 'estimated'
+  source: 'catalog' | 'estimated' | 'new'
   food_id: string | null
   matched_name: string | null
   category: string | null
-}
-
-function extractJson(text: string): MealAnalysis {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  const candidate = fenced ? fenced[1] : text
-  const start = candidate.indexOf('{')
-  const end = candidate.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('No JSON object found in model response')
-  return JSON.parse(candidate.slice(start, end + 1))
 }
 
 // ============================================================================
@@ -185,14 +172,35 @@ function groundMacro(perHundredG: number | null, portionG: number, visionEstimat
   return perHundredG !== null ? Math.round((perHundredG * portionG) / 100) : visionEstimate
 }
 
-async function groundItems(items: RawMealItem[]): Promise<{ items: GroundedMealItem[]; matchedCount: number }> {
+/** A food with no confident catalog match gets added to it from the vision
+ * model's own estimate, scaled to a 100g basis, so the next photo of the
+ * same food is grounded instead of guessed again. */
+async function addNewlyDetectedFood(item: RawMealItem): Promise<CatalogFoodRow | null> {
+  if (item.portion_g <= 0) return null
+  const scale = 100 / item.portion_g
+  return upsertFoodFrom100gBasis(supabase, {
+    name: item.name,
+    kcalPer100g: item.calories * scale,
+    proteinPer100g: item.protein_g * scale,
+    carbsPer100g: item.carbs_g * scale,
+    fatPer100g: item.fat_g * scale,
+    source: 'vision',
+  })
+}
+
+async function groundItems(
+  items: RawMealItem[]
+): Promise<{ items: GroundedMealItem[]; matchedCount: number; newCount: number }> {
   const foods = await getFoods()
   let matchedCount = 0
-  const grounded = items.map((item): GroundedMealItem => {
+  let newCount = 0
+  const grounded: GroundedMealItem[] = []
+
+  for (const item of items) {
     const match = item.portion_g > 0 ? matchFood(item.name, foods) : null
     if (match) {
       matchedCount++
-      return {
+      grounded.push({
         name: item.name,
         portion_g: item.portion_g,
         calories: Math.round((match.kcal_per_100g * item.portion_g) / 100),
@@ -203,22 +211,33 @@ async function groundItems(items: RawMealItem[]): Promise<{ items: GroundedMealI
         food_id: match.id,
         matched_name: match.name,
         category: match.category,
-      }
+      })
+      continue
     }
-    return {
+
+    const newFood = await addNewlyDetectedFood(item)
+    if (newFood) {
+      newCount++
+      // So a second unmatched item in this same photo (e.g. "riz" listed twice)
+      // matches the row just added instead of creating another one.
+      foods.push({ ...newFood, normName: normalize(newFood.name), tokens: tokenize(normalize(newFood.name)) })
+    }
+
+    grounded.push({
       name: item.name,
       portion_g: item.portion_g,
       calories: item.calories,
       protein_g: item.protein_g,
       carbs_g: item.carbs_g,
       fat_g: item.fat_g,
-      source: 'estimated',
-      food_id: null,
-      matched_name: null,
-      category: null,
-    }
-  })
-  return { items: grounded, matchedCount }
+      source: newFood ? 'new' : 'estimated',
+      food_id: newFood ? newFood.id : null,
+      matched_name: newFood ? newFood.name : null,
+      category: newFood ? newFood.category : null,
+    })
+  }
+
+  return { items: grounded, matchedCount, newCount }
 }
 
 Deno.serve(async (req) => {
@@ -268,8 +287,8 @@ Deno.serve(async (req) => {
     const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')
     if (!textBlock) throw new Error('No text content in model response')
 
-    const analysis = extractJson(textBlock.text)
-    const { items: groundedItems, matchedCount } = await groundItems(analysis.items ?? [])
+    const analysis = extractJson<MealAnalysis>(textBlock.text)
+    const { items: groundedItems, matchedCount, newCount } = await groundItems(analysis.items ?? [])
 
     // Recompute totals as the sum of the (possibly catalog-grounded) items rather than
     // trusting the vision model's own totals, which wouldn't reflect catalog corrections.
@@ -284,9 +303,10 @@ Deno.serve(async (req) => {
       { total_calories: 0, total_protein_g: 0, total_carbs_g: 0, total_fat_g: 0 }
     )
 
-    return new Response(JSON.stringify({ items: groundedItems, ...totals, matched_count: matchedCount }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ items: groundedItems, ...totals, matched_count: matchedCount, new_count: newCount }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   } catch (error) {
     console.error('analyze-meal-photo error', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
