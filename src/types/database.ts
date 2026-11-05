@@ -151,7 +151,7 @@ export interface Food {
   created_at: string
 }
 
-export type MealItemSource = 'catalog' | 'estimated'
+export type MealItemSource = 'catalog' | 'estimated' | 'new' | 'label'
 
 export interface MealItem {
   id: string

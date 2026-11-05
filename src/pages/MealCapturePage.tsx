@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Database, Loader2, Search, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { Camera, Database, Loader2, Search, Sparkles, Tag, Trash2, Upload, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { todayInTimezone } from '@/lib/date'
@@ -33,12 +33,20 @@ type FoodSearchResult = Pick<
   | 'fat_g_per_100g'
 >
 
-type EntryMode = 'photo' | 'manual'
+type EntryMode = 'photo' | 'manual' | 'label'
 
 const ENTRY_MODE_OPTIONS: { value: EntryMode; label: string }[] = [
   { value: 'photo', label: 'Photo' },
+  { value: 'label', label: 'Étiquette' },
   { value: 'manual', label: 'Saisie manuelle' },
 ]
+
+interface LabelAnalysis {
+  product_name: string | null
+  per_100g: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
+  suggested_portion_g: number | null
+  food_id: string | null
+}
 
 const SEARCH_DEBOUNCE_MS = 250
 const SEARCH_MIN_LENGTH = 2
@@ -102,6 +110,13 @@ export default function MealCapturePage() {
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null)
   const [portionInput, setPortionInput] = useState('')
+
+  const labelFileInputRef = useRef<HTMLInputElement>(null)
+  const [labelPreviewUrl, setLabelPreviewUrl] = useState<string | null>(null)
+  const [labelAnalyzing, setLabelAnalyzing] = useState(false)
+  const [labelResult, setLabelResult] = useState<LabelAnalysis | null>(null)
+  const [labelProductName, setLabelProductName] = useState('')
+  const [labelQuantity, setLabelQuantity] = useState('')
 
   useEffect(() => {
     const trimmed = searchQuery.trim()
@@ -203,6 +218,63 @@ export default function MealCapturePage() {
     }
   }
 
+  async function handleLabelFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLabelPreviewUrl(URL.createObjectURL(file))
+    setAnalysisError(null)
+    setLabelResult(null)
+    setLabelProductName('')
+    setLabelQuantity('')
+
+    setLabelAnalyzing(true)
+    try {
+      const base64 = await fileToBase64(file)
+      const { data, error } = await supabase.functions.invoke('analyze-nutrition-label', {
+        body: { imageBase64: base64, mediaType: file.type || 'image/jpeg' },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setLabelResult(data)
+      setLabelProductName(data.product_name ?? '')
+      setLabelQuantity(data.suggested_portion_g ? String(data.suggested_portion_g) : '')
+    } catch (err) {
+      setAnalysisError(
+        err instanceof Error ? err.message : "Impossible de lire cette étiquette. Réessayez ou saisissez les valeurs manuellement."
+      )
+    } finally {
+      setLabelAnalyzing(false)
+    }
+  }
+
+  function resetLabelForm() {
+    setLabelPreviewUrl(null)
+    setLabelResult(null)
+    setLabelProductName('')
+    setLabelQuantity('')
+  }
+
+  function handleAddLabelItem() {
+    if (!labelResult) return
+    const quantity = Number(labelQuantity)
+    if (!quantity || quantity <= 0) return
+    const name = labelProductName.trim() || 'Produit (étiquette)'
+    const newItem: DetectedItem = {
+      name,
+      portion_g: quantity,
+      calories: Math.round((labelResult.per_100g.kcal * quantity) / 100),
+      protein_g: Math.round((labelResult.per_100g.protein_g * quantity) / 100),
+      carbs_g: Math.round((labelResult.per_100g.carbs_g * quantity) / 100),
+      fat_g: Math.round((labelResult.per_100g.fat_g * quantity) / 100),
+      source: 'label',
+      food_id: labelResult.food_id,
+      matched_name: name,
+      category: 'Divers',
+    }
+    updateItems([...items, newItem])
+    resetLabelForm()
+  }
+
   function markAdjusted<T>(setter: (v: T) => void) {
     return (v: T) => {
       setUserAdjusted(true)
@@ -295,7 +367,7 @@ export default function MealCapturePage() {
 
         <div>
           <label className="label">Mode de saisie</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {ENTRY_MODE_OPTIONS.map((opt) => (
               <button
                 type="button"
@@ -348,6 +420,98 @@ export default function MealCapturePage() {
                 <Upload size={28} />
                 <span className="text-sm">Prendre ou importer une photo</span>
               </button>
+            )}
+          </div>
+        ) : entryMode === 'label' ? (
+          <div className="space-y-3">
+            <div>
+              <label className="label">Photo de l'étiquette nutritionnelle</label>
+              <input
+                ref={labelFileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleLabelFileChange}
+              />
+              {labelPreviewUrl ? (
+                <div className="relative">
+                  <img src={labelPreviewUrl} alt="Aperçu de l'étiquette" className="h-56 w-full rounded-2xl object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => labelFileInputRef.current?.click()}
+                    className="absolute bottom-3 right-3 rounded-full bg-slate-950/80 p-2 text-slate-200"
+                  >
+                    <Camera size={18} />
+                  </button>
+                  {labelAnalyzing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-slate-950/70 text-slate-200">
+                      <Loader2 size={24} className="animate-spin" />
+                      <p className="text-sm">Lecture de l'étiquette…</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => labelFileInputRef.current?.click()}
+                  className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-700 text-slate-500"
+                >
+                  <Tag size={28} />
+                  <span className="text-sm">Photographier le tableau nutritionnel</span>
+                </button>
+              )}
+            </div>
+
+            {labelResult && (
+              <div className="card space-y-3">
+                <div>
+                  <label className="label">Nom du produit</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={labelProductName}
+                    onChange={(e) => setLabelProductName(e.target.value)}
+                    placeholder="Produit"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Pour 100g : {labelResult.per_100g.kcal} kcal · {labelResult.per_100g.protein_g}g protéines ·{' '}
+                  {labelResult.per_100g.carbs_g}g glucides · {labelResult.per_100g.fat_g}g lipides
+                </p>
+                <div>
+                  <label className="label">Quantité consommée (g)</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="input"
+                    value={labelQuantity}
+                    onChange={(e) => setLabelQuantity(e.target.value)}
+                    placeholder="30"
+                  />
+                </div>
+                {Number(labelQuantity) > 0 && (
+                  <p className="text-sm text-slate-300">
+                    Soit {Math.round((labelResult.per_100g.kcal * Number(labelQuantity)) / 100)} kcal ·{' '}
+                    {Math.round((labelResult.per_100g.protein_g * Number(labelQuantity)) / 100)}g protéines ·{' '}
+                    {Math.round((labelResult.per_100g.carbs_g * Number(labelQuantity)) / 100)}g glucides ·{' '}
+                    {Math.round((labelResult.per_100g.fat_g * Number(labelQuantity)) / 100)}g lipides
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button type="button" onClick={resetLabelForm} className="btn-ghost flex-1">
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddLabelItem}
+                    className="btn-primary flex-1"
+                    disabled={!Number(labelQuantity)}
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -433,6 +597,8 @@ export default function MealCapturePage() {
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Aliments</p>
               <p className="text-xs text-slate-500">
                 {items.filter((i) => i.source === 'catalog').length}/{items.length} depuis la base de données
+                {items.some((i) => i.source === 'new') &&
+                  ` · +${items.filter((i) => i.source === 'new').length} ajoutés`}
               </p>
             </div>
             <ul className="space-y-1">
@@ -441,6 +607,10 @@ export default function MealCapturePage() {
                   <span className="flex items-center gap-2 text-slate-300">
                     {item.source === 'catalog' ? (
                       <Database size={14} className="shrink-0 text-brand-400" />
+                    ) : item.source === 'new' ? (
+                      <Sparkles size={14} className="shrink-0 text-amber-400" />
+                    ) : item.source === 'label' ? (
+                      <Tag size={14} className="shrink-0 text-indigo-400" />
                     ) : (
                       <Sparkles size={14} className="shrink-0 text-slate-500" />
                     )}
