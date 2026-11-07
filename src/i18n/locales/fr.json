@@ -87,7 +87,15 @@
   "reminders": {
     "title": "Rappels",
     "subtitle": "Notifications pour vos repas et habitudes",
-    "dayLetters": ["D", "L", "M", "M", "J", "V", "S"],
+    "dayLetters": [
+      "D",
+      "L",
+      "M",
+      "M",
+      "J",
+      "V",
+      "S"
+    ],
     "enablePush": "Activer les notifications push",
     "enablePushSubtitle": "Recevez vos rappels même app fermée.",
     "enable": "Activer",
@@ -333,11 +341,34 @@
   },
   "login": {
     "tagline": "Sommeil, sport, nutrition et temps spirituel — un seul endroit pour suivre vos habitudes.",
-    "linkSentBefore": "Un lien de connexion a été envoyé à",
-    "linkSentAfter": ". Ouvrez-le depuis cet appareil pour vous connecter.",
+    "linkSentBefore": "Un e-mail de connexion a été envoyé à",
+    "linkSentAfter": ". Saisissez le code qu'il contient ci-dessous, ou ouvrez le lien depuis cet appareil.",
     "emailLabel": "Adresse e-mail",
     "emailPlaceholder": "vous@exemple.com",
     "sending": "Envoi…",
-    "submit": "Recevoir le lien de connexion"
+    "submit": "Recevoir le code de connexion",
+    "codeLabel": "Code de connexion",
+    "codePlaceholder": "123456",
+    "codeHint": "Dans l'application installée, saisissez le code : c'est le plus simple.",
+    "verify": "Se connecter",
+    "verifying": "Vérification…",
+    "useOtherEmail": "Utiliser une autre adresse"
+  },
+  "install": {
+    "dismiss": "Plus tard",
+    "genericTitle": "Installez Shape sur votre téléphone",
+    "androidMenuHint": "Ouvrez le menu ⋮ du navigateur, puis appuyez sur « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+    "iosTitle": "Installez Shape sur votre iPhone",
+    "iosIntro": "Quelques secondes, sans passer par l'App Store.",
+    "iosStep1Title": "Appuyez sur Partager",
+    "iosStep1Detail": "Le carré avec une flèche vers le haut. Dans Safari, il peut se cacher derrière le menu ⋯.",
+    "iosStep2Title": "Choisissez « Sur l'écran d'accueil »",
+    "iosStep2Detail": "Faites défiler la liste si vous ne la voyez pas.",
+    "iosStep3Title": "Laissez « Ouvrir en tant qu'app web » activé",
+    "iosStep3Detail": "Puis appuyez sur Ajouter. Si cette option n'apparaît pas, appuyez simplement sur Ajouter.",
+    "iosStep4Title": "Ouvrez Shape depuis l'écran d'accueil",
+    "iosStep4Detail": "Connectez-vous dedans avec le code reçu par e-mail plutôt qu'avec le lien : ainsi la session reste dans l'application.",
+    "inAppTitle": "Ouvrez Shape dans votre navigateur",
+    "inAppBody": "Vous êtes dans le navigateur intégré d'une autre application (Instagram, Facebook…), qui ne permet pas d'installer Shape. Appuyez sur ⋯ puis sur « Ouvrir dans le navigateur » (ou « Ouvrir dans Safari »)."
   }
 }

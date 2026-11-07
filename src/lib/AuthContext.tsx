@@ -10,6 +10,7 @@ interface AuthContextValue {
   profile: UserProfile | null
   loading: boolean
   signInWithEmail: (email: string) => Promise<{ error: string | null }>
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -71,6 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
+  // Lets the user finish signing in by typing the code from the email instead of opening the link.
+  // Matters for installed home-screen apps: the link opens in the default browser, whose session
+  // is separate from the installed app's, whereas a code typed inside the app signs in right there.
+  async function verifyEmailCode(email: string, code: string) {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
+    return { error: error?.message ?? null }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
@@ -81,7 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, profile, loading, signInWithEmail, signOut, refreshProfile }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        profile,
+        loading,
+        signInWithEmail,
+        verifyEmailCode,
+        signOut,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

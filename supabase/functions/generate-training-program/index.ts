@@ -185,7 +185,12 @@ Deno.serve(async (req) => {
     }
 
     const validExerciseIds = new Set(cleanExercises.map((e) => e.id))
-    const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
+    const workspaceId = Deno.env.get('ANTHROPIC_WORKSPACE_ID')
+    const anthropic = new Anthropic({
+      apiKey: Deno.env.get('ANTHROPIC_API_KEY'),
+      // Required when the API key isn't scoped to a single workspace; harmless otherwise.
+      ...(workspaceId ? { defaultHeaders: { 'anthropic-workspace-id': workspaceId } } : {}),
+    })
     const prompt =
       buildPrompt(typeof goalType === 'string' ? goalType : null, cleanExercises) + languageInstruction(language)
 
