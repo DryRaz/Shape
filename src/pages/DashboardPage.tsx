@@ -5,6 +5,7 @@ import { Flame, CheckCircle2, Moon, UtensilsCrossed, Dumbbell, Trophy } from 'lu
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import RangeSwitcher from '@/components/RangeSwitcher'
+import InstallGuide from '@/components/InstallGuide'
 import TrendBarChart, { type TrendPoint } from '@/components/TrendBarChart'
 import { computeStreak, isoDate, rangeFor, todayInTimezone, trailingDays, type RangeKind } from '@/lib/date'
 import type { HabitLog, HabitType, Meal, SleepLog } from '@/types/database'
@@ -137,6 +138,8 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-400">{t('dashboard.greeting')}</p>
         <h1 className="text-xl font-semibold text-slate-50">{t('dashboard.title')}</h1>
       </header>
+
+      <InstallGuide />
 
       <RangeSwitcher kind={kind} anchorIso={anchor} onKindChange={setKind} onAnchorChange={setAnchor} />
 

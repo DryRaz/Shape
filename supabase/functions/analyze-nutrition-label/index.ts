@@ -57,7 +57,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
+    const workspaceId = Deno.env.get('ANTHROPIC_WORKSPACE_ID')
+    const anthropic = new Anthropic({
+      apiKey: Deno.env.get('ANTHROPIC_API_KEY'),
+      // Required when the API key isn't scoped to a single workspace; harmless otherwise.
+      ...(workspaceId ? { defaultHeaders: { 'anthropic-workspace-id': workspaceId } } : {}),
+    })
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-5',

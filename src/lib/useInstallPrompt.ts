@@ -12,6 +12,24 @@ function isStandalone(): boolean {
   )
 }
 
+// iPadOS 13+ reports itself as a Mac, so touch support is the tell.
+function detectIos(): boolean {
+  const ua = window.navigator.userAgent
+  if (/iphone|ipad|ipod/i.test(ua)) return true
+  return /macintosh/i.test(ua) && window.navigator.maxTouchPoints > 1
+}
+
+function detectAndroid(): boolean {
+  return /android/i.test(window.navigator.userAgent)
+}
+
+// Embedded browsers (Instagram, Facebook, TikTok…) can't add anything to the home screen.
+function detectInAppBrowser(): boolean {
+  return /Instagram|FBAN|FBAV|FB_IAB|Snapchat|TikTok|musical_ly|Twitter|LinkedInApp|MicroMessenger|Line\//i.test(
+    window.navigator.userAgent,
+  )
+}
+
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(isStandalone)
@@ -41,10 +59,15 @@ export function useInstallPrompt() {
     setDeferredPrompt(null)
   }
 
-  const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+  const isIos = detectIos()
+  const isAndroid = detectAndroid()
+  const isInAppBrowser = detectInAppBrowser()
 
   return {
     installed,
+    isIos,
+    isAndroid,
+    isInAppBrowser,
     canPromptInstall: !installed && !!deferredPrompt,
     needsIosInstructions: !installed && !deferredPrompt && isIos,
     promptInstall,

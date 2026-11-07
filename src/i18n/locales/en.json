@@ -87,7 +87,15 @@
   "reminders": {
     "title": "Reminders",
     "subtitle": "Notifications for your meals and habits",
-    "dayLetters": ["S", "M", "T", "W", "T", "F", "S"],
+    "dayLetters": [
+      "S",
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S"
+    ],
     "enablePush": "Enable push notifications",
     "enablePushSubtitle": "Get your reminders even with the app closed.",
     "enable": "Enable",
@@ -333,11 +341,34 @@
   },
   "login": {
     "tagline": "Sleep, sport, nutrition and quiet time — one place to track your habits.",
-    "linkSentBefore": "A sign-in link was sent to",
-    "linkSentAfter": ". Open it on this device to sign in.",
+    "linkSentBefore": "A sign-in email was sent to",
+    "linkSentAfter": ". Enter the code it contains below, or open the link on this device.",
     "emailLabel": "Email address",
     "emailPlaceholder": "you@example.com",
     "sending": "Sending…",
-    "submit": "Send sign-in link"
+    "submit": "Send sign-in code",
+    "codeLabel": "Sign-in code",
+    "codePlaceholder": "123456",
+    "codeHint": "In the installed app, enter the code: it's the simplest way.",
+    "verify": "Sign in",
+    "verifying": "Verifying…",
+    "useOtherEmail": "Use a different email"
+  },
+  "install": {
+    "dismiss": "Later",
+    "genericTitle": "Install Shape on your phone",
+    "androidMenuHint": "Open your browser's ⋮ menu, then tap “Install app” or “Add to Home screen”.",
+    "iosTitle": "Install Shape on your iPhone",
+    "iosIntro": "Takes a few seconds, no App Store needed.",
+    "iosStep1Title": "Tap Share",
+    "iosStep1Detail": "The square with an upward arrow. In Safari it may be tucked behind the ⋯ menu.",
+    "iosStep2Title": "Choose “Add to Home Screen”",
+    "iosStep2Detail": "Scroll the list if you don't see it.",
+    "iosStep3Title": "Keep “Open as Web App” turned on",
+    "iosStep3Detail": "Then tap Add. If that option doesn't appear, just tap Add.",
+    "iosStep4Title": "Open Shape from your Home Screen",
+    "iosStep4Detail": "Sign in there with the code from the email rather than the link, so the session stays inside the app.",
+    "inAppTitle": "Open Shape in your browser",
+    "inAppBody": "You're inside another app's built-in browser (Instagram, Facebook…), which can't install Shape. Tap ⋯ then “Open in browser” (or “Open in Safari”)."
   }
 }
