@@ -200,3 +200,30 @@ export interface WeeklyChallenge {
   result_seen: boolean
   created_at: string
 }
+
+export type RunSource = 'gps' | 'manual'
+/** [lat, lng, seconds since start, altitude (m) or null, 1 if this point starts a new segment] */
+export type RunRoutePoint = [number, number, number, number | null, 0 | 1]
+
+export interface RunSplit {
+  index: number
+  distance_m: number
+  time_s: number
+}
+
+export interface Run {
+  id: string
+  user_id: string
+  started_at: string
+  ended_at: string
+  duration_s: number
+  moving_time_s: number | null
+  distance_m: number
+  elevation_gain_m: number | null
+  calories_kcal: number | null
+  source: RunSource
+  gps_gap_s: number
+  route: RunRoutePoint[] | null
+  splits: RunSplit[] | null
+  created_at: string
+}

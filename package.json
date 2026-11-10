@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "wger:import": "tsx scripts/import-wger-exercises.ts",
-    "yazio:import": "tsx scripts/import-yazio-foods.ts"
+    "yazio:import": "tsx scripts/import-yazio-foods.ts",
+    "run:simulate": "tsx scripts/simulate-run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
