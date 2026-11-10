@@ -5,6 +5,7 @@ import { Dumbbell, ListChecks, Play, Plus, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { displayDate } from '@/lib/date'
+import RunsSection from '@/components/RunsSection'
 import type { Program, Routine, WorkoutSession } from '@/types/database'
 
 export default function SportPage() {
@@ -47,6 +48,8 @@ export default function SportPage() {
           {t('sport.exercises')}
         </Link>
       </header>
+
+      <RunsSection />
 
       <section className="card space-y-2">
         <div className="flex items-center gap-3">

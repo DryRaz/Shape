@@ -1,5 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '@/lib/AuthContext'
+import { useRunSync } from '@/lib/running/hooks'
+import ActiveRunBanner from '@/components/ActiveRunBanner'
 import {
   LayoutDashboard,
   Moon,
@@ -20,8 +23,11 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  useRunSync(user?.id)
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-slate-950 pb-24">
+      <ActiveRunBanner />
       <main className="flex-1 px-4 pt-6">
         <Outlet />
       </main>

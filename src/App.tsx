@@ -8,6 +8,9 @@ import SleepPage from '@/pages/SleepPage'
 import NutritionPage from '@/pages/NutritionPage'
 import MealCapturePage from '@/pages/MealCapturePage'
 import SportPage from '@/pages/SportPage'
+import RunPage from '@/pages/RunPage'
+import RunDetailPage from '@/pages/RunDetailPage'
+import RunManualPage from '@/pages/RunManualPage'
 import ExerciseCatalogPage from '@/pages/ExerciseCatalogPage'
 import RoutineEditorPage from '@/pages/RoutineEditorPage'
 import WorkoutSessionPage from '@/pages/WorkoutSessionPage'
@@ -48,6 +51,9 @@ export default function App() {
         <Route path="/nutrition" element={<NutritionPage />} />
         <Route path="/nutrition/nouveau" element={<MealCapturePage />} />
         <Route path="/sport" element={<SportPage />} />
+        <Route path="/sport/course" element={<RunPage />} />
+        <Route path="/sport/course/manuelle" element={<RunManualPage />} />
+        <Route path="/sport/course/:runId" element={<RunDetailPage />} />
         <Route path="/sport/exercices" element={<ExerciseCatalogPage />} />
         <Route path="/sport/routines/:routineId" element={<RoutineEditorPage />} />
         <Route path="/sport/routines/nouveau" element={<RoutineEditorPage />} />
